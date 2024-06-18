@@ -17,9 +17,10 @@ int main(int argc, char *argv[])
     printf("; %s disassembly:\n", argv[1]);
     printf("bits 16\n");
 
-    unsigned char operand = 0;
     while(fread(bytes, sizeof(bytes), 1, fp) > 0)
     {
+        unsigned char operand = 0;
+
         int bitIndex = 0;
         for (int i = 0;
              i < 2; 
@@ -37,18 +38,18 @@ int main(int argc, char *argv[])
                 }
                 bitIndex++;
                 printf("%u", bit); // Print the bit (for demonstration purposes)
-                // You can process the bit here as needed
             }
+
             if (operand == 34 && i == 0) 
             {
                 strcat(instructions, "mov ");
             }
+
             printf("\n");
         }
+        printf("Operand in number: %d\n", operand);
     }
 
-    printf("\n");
-    printf("Operand in number: %d\n", operand);
     printf("%s", instructions);
 
     fclose(fp);
