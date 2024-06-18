@@ -1,14 +1,26 @@
 #include <stdio.h>
 #include <string.h>
 
+void printBits(unsigned char Byte) {
+    // Iterate through each bit position (from MSB to LSB)
+    for (int i = 7; i >= 0; --i) {
+        // Check if the i-th bit is set (1) or not (0)
+        if (Byte & (1 << i))
+            printf("1");
+        else
+            printf("0");
+    }
+    printf("\n");
+}
+
 int main(int argc, char *argv[])
 {
-    FILE *fp;
-    unsigned char bytes[2];
-    char instructions[5];
+    FILE *Fp;
+    unsigned char Bytes[2];
+    char Instructions[5];
 
-    fp = fopen(argv[1], "rb");
-    if (fp == NULL) 
+    Fp = fopen(argv[1], "rb");
+    if (Fp == NULL) 
     {
         perror("Error opening file");
         return 1;
@@ -17,42 +29,39 @@ int main(int argc, char *argv[])
     printf("; %s disassembly:\n", argv[1]);
     printf("bits 16\n");
 
-    while(fread(bytes, sizeof(bytes), 1, fp) > 0)
+    while(fread(Bytes, sizeof(Bytes), 1, Fp) > 0)
     {
-        unsigned char operand = 0;
+        unsigned char Operand = 0;
+        bool Destination = false;
+        bool Width = false;
+        unsigned char Mode = 0;
+        unsigned char Register = 0;
+        unsigned char RegisterMemoryField = 0;
 
-        int bitIndex = 0;
         for (int i = 0;
              i < 2; 
              i++) 
         {
-            for (int j = 7; 
-                 j >= 0; 
-                 j--) 
+            if (i == 0)
             {
-                // Extract each bit from the byte, starting from the most significant bit
-                unsigned char bit = (bytes[i] >> j) & 1;
-                if (i == 0)
-                {
-                    operand |= bit << (5 - bitIndex);
-                }
-                bitIndex++;
-                printf("%u", bit); // Print the bit (for demonstration purposes)
+                Operand = Bytes[i] >> 2; 
+                Destination = (Bytes[i] >> 6) & 0x01; // Shift right by 6 bits and mask with 0x01 (binary: 00000001)
+                Width = (Bytes[i] >> 7) & 0x01; // Shift right by 6 bits and mask with 0x01 (binary: 00000001)
+                printf("%d\n", Destination);
+                printf("%d\n", Width);
             }
 
-            if (operand == 34 && i == 0) 
+            if (Operand == 34 && i == 0) 
             {
-                strcat(instructions, "mov ");
+                strcat(Instructions, "mov ");
             }
-
-            printf("\n");
+            printBits(Bytes[i]);
         }
-        printf("Operand in number: %d\n", operand);
     }
 
-    printf("%s", instructions);
+    printf("%s", Instructions);
 
-    fclose(fp);
+    fclose(Fp);
 
     return 0;
 }
