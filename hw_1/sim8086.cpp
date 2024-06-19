@@ -17,16 +17,15 @@ int main(int argc, char *argv[])
 {
     FILE *Fp;
     unsigned char Bytes[2];
-    char Instructions[32];
+    char Instructions[11];
 
-    Fp = fopen(argv[1], "rb");
+    Fp = fopen(argv[1], "r");
     if (Fp == NULL) 
     {
         perror("Error opening file");
         return 1;
     }
 
-    printf("; %s disassembly:\n", argv[1]);
 
     while(fread(Bytes, sizeof(Bytes), 1, Fp) > 0)
     {
@@ -66,7 +65,9 @@ int main(int argc, char *argv[])
         }
     }
 
-    printf("bits 16\n%s\n", Instructions);
+    printf("; %s disassembly:\n", argv[1]);
+    printf("bits 16\n");
+    printf("%s\n", Instructions);
 
     fclose(Fp);
 
