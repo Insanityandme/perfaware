@@ -17,7 +17,7 @@ int main(int argc, char *argv[])
 {
     FILE *Fp;
     unsigned char Bytes[2];
-    char Instructions[5];
+    char Instructions[32];
 
     Fp = fopen(argv[1], "rb");
     if (Fp == NULL) 
@@ -27,39 +27,46 @@ int main(int argc, char *argv[])
     }
 
     printf("; %s disassembly:\n", argv[1]);
-    printf("bits 16\n");
 
     while(fread(Bytes, sizeof(Bytes), 1, Fp) > 0)
     {
-        unsigned char Operand = 0;
-        bool Destination = false;
-        bool Width = false;
-        unsigned char Mode = 0;
-        unsigned char Register = 0;
-        unsigned char RegisterMemoryField = 0;
+        unsigned char Opcode = 0;
+        unsigned char D = 0;
+        unsigned char W = 0;
+        unsigned char Mod = 0;
+        unsigned char Reg = 0;
+        unsigned char RM = 0;
 
-        for (int i = 0;
-             i < 2; 
-             i++) 
+        // for(int i = 0; i < 2; i++)
+        // {
+        //     printBits(Bytes[i]);
+        // }
+
+        Opcode = Bytes[0] >> 2; 
+        D = (Bytes[0] >> 1) & 0b1; // Shift right by 6 bits and mask with 0x01 (binary: 00000001)
+        W = Bytes[0] & 0b1; // Shift right by 6 bits and mask with 0x01 (binary: 00000001)
+
+        Mod = (Bytes[1] >> 6); // Shift right by 6 bits and mask with 0x03
+        Reg = (Bytes[1] >> 3) & 0b111; // Shift right by 3 bits and mask with 0x07
+        RM = Bytes[1] & 0b111; // Mask with 0x07 to isolate the last three bits
+
+        if(Opcode == 0b100010) // 100010
         {
-            if (i == 0)
-            {
-                Operand = Bytes[i] >> 2; 
-                Destination = (Bytes[i] >> 6) & 0x01; // Shift right by 6 bits and mask with 0x01 (binary: 00000001)
-                Width = (Bytes[i] >> 7) & 0x01; // Shift right by 6 bits and mask with 0x01 (binary: 00000001)
-                printf("%d\n", Destination);
-                printf("%d\n", Width);
-            }
+            strcat(Instructions, "mov ");
+        }
 
-            if (Operand == 34 && i == 0) 
-            {
-                strcat(Instructions, "mov ");
-            }
-            printBits(Bytes[i]);
+        if(Mod == 0b11 && W == 0b1 && RM == 0b001)
+        {
+            strcat(Instructions, "cx, ");
+        }
+
+        if(Reg == 0b011 && W == 0b1)
+        {
+            strcat(Instructions, "bx");
         }
     }
 
-    printf("%s", Instructions);
+    printf("bits 16\n%s\n", Instructions);
 
     fclose(Fp);
 
