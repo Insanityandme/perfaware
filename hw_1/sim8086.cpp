@@ -39,8 +39,6 @@ int main(int argc, char *argv[])
 
     for(int i = 0; i < 22; i++)
     {
-        printBits(Bytes[i]);
-        // 1st byte
         if(i % 2 == 0)
         {
             Opcode = Bytes[i] >> 2; 
@@ -52,23 +50,88 @@ int main(int argc, char *argv[])
                 strcat(Instructions, "mov ");
             }
         }
-        // 2nd byte
         else 
         {
             Mod = (Bytes[i] >> 6); // Shift right by 6 bits and mask with 0x03
             Reg = (Bytes[i] >> 3) & 0b111; // Shift right by 3 bits and mask with 0x07
             RM = Bytes[i] & 0b111; // Mask with 0x07 to isolate the last three bits
-        }
 
+            if(Mod == 0b11)
+            {
+                if(W == 0b1)
+                {
+                    switch(RM)
+                    {
+                        case 0b001:
+                            strcat(Instructions, "cx, ");
+                            break;
+                        case 0b010:
+                            strcat(Instructions, "dx, ");
+                            break;
+                        case 0b110:
+                            strcat(Instructions, "si, ");
+                            break;
+                        case 0b011:
+                            strcat(Instructions, "bx, ");
+                            break;
+                        case 0b100:
+                            strcat(Instructions, "sp, ");
+                            break;
+                        case 0b101:
+                            strcat(Instructions, "bp, ");
+                            break;
+                    }
+                }
+                else if(W == 0b0)
+                {
+                    if(RM == 0b101)
+                    {
+                        strcat(Instructions, "ch, ");
+                    }
+                    else if(RM == 0b000)
+                    {
+                        strcat(Instructions, "al, ");
+                    }
+                }
+            }
+            if(W == 0b1)
+            {
+                switch(Reg)
+                {
+                    case 0b111:
+                        strcat(Instructions, "di");
+                        break;
+                    case 0b011:
+                        strcat(Instructions, "bx");
+                        break;
+                    case 0b100:
+                        strcat(Instructions, "ah");
+                        break;
+                    case 0b000:
+                        strcat(Instructions, "ax");
+                        break;
+                    case 0b110:
+                        strcat(Instructions, "si");
+                        break;
+                }
+            }
+            else if(W == 0b0)
+            {
+                switch(Reg)
+                {
+                    case 0b100:
+                        strcat(Instructions, "ah");
+                        break;
+                    case 0b101:
+                        strcat(Instructions, "ch");
+                        break;
+                    case 0b001:
+                        strcat(Instructions, "cl");
+                        break;
+                }
+            }
 
-        if(Mod == 0b11 && W == 0b1 && RM == 0b001)
-        {
-            strcat(Instructions, "cx, ");
-        }
-
-        if(Reg == 0b011 && W == 0b1)
-        {
-            strcat(Instructions, "bx");
+            strcat(Instructions, "\n");
         }
     }
 
