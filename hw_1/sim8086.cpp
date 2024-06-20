@@ -16,10 +16,10 @@ void printBits(unsigned char Byte) {
 int main(int argc, char *argv[])
 {
     FILE *Fp;
-    unsigned char Bytes[2];
-    char Instructions[11];
+    unsigned char Bytes[22];
+    char Instructions[100];
 
-    Fp = fopen(argv[1], "r");
+    Fp = fopen(argv[1], "rb");
     if (Fp == NULL) 
     {
         perror("Error opening file");
@@ -27,32 +27,39 @@ int main(int argc, char *argv[])
     }
 
 
-    while(fread(Bytes, sizeof(Bytes), 1, Fp) > 0)
+    fread(Bytes, sizeof(char), 22, Fp);
+    fclose(Fp);
+
+    unsigned char Opcode = 0;
+    unsigned char D = 0;
+    unsigned char W = 0;
+    unsigned char Mod = 0;
+    unsigned char Reg = 0;
+    unsigned char RM = 0;
+
+    for(int i = 0; i < 22; i++)
     {
-        unsigned char Opcode = 0;
-        unsigned char D = 0;
-        unsigned char W = 0;
-        unsigned char Mod = 0;
-        unsigned char Reg = 0;
-        unsigned char RM = 0;
-
-        // for(int i = 0; i < 2; i++)
-        // {
-        //     printBits(Bytes[i]);
-        // }
-
-        Opcode = Bytes[0] >> 2; 
-        D = (Bytes[0] >> 1) & 0b1; // Shift right by 6 bits and mask with 0x01 (binary: 00000001)
-        W = Bytes[0] & 0b1; // Shift right by 6 bits and mask with 0x01 (binary: 00000001)
-
-        Mod = (Bytes[1] >> 6); // Shift right by 6 bits and mask with 0x03
-        Reg = (Bytes[1] >> 3) & 0b111; // Shift right by 3 bits and mask with 0x07
-        RM = Bytes[1] & 0b111; // Mask with 0x07 to isolate the last three bits
-
-        if(Opcode == 0b100010) // 100010
+        printBits(Bytes[i]);
+        // 1st byte
+        if(i % 2 == 0)
         {
-            strcat(Instructions, "mov ");
+            Opcode = Bytes[i] >> 2; 
+            D = (Bytes[i] >> 1) & 0b1; // Shift right by 6 bits and mask with 0x01 (binary: 00000001)
+            W = Bytes[i] & 0b1; // Shift right by 6 bits and mask with 0x01 (binary: 00000001)
+
+            if(Opcode == 0b100010) // 100010
+            {
+                strcat(Instructions, "mov ");
+            }
         }
+        // 2nd byte
+        else 
+        {
+            Mod = (Bytes[i] >> 6); // Shift right by 6 bits and mask with 0x03
+            Reg = (Bytes[i] >> 3) & 0b111; // Shift right by 3 bits and mask with 0x07
+            RM = Bytes[i] & 0b111; // Mask with 0x07 to isolate the last three bits
+        }
+
 
         if(Mod == 0b11 && W == 0b1 && RM == 0b001)
         {
@@ -68,8 +75,6 @@ int main(int argc, char *argv[])
     printf("; %s disassembly:\n", argv[1]);
     printf("bits 16\n");
     printf("%s\n", Instructions);
-
-    fclose(Fp);
 
     return 0;
 }
