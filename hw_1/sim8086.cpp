@@ -26,7 +26,6 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-
     fread(Bytes, sizeof(char), 22, Fp);
     fclose(Fp);
 
