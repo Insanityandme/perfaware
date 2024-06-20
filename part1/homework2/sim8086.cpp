@@ -158,7 +158,7 @@ int main(int argc, char *argv[])
             }
             else if(W == 0b1)
             {
-                Data16 = (Bytes[i+1] << 8) | Bytes[i+2];
+                Data16 = (Bytes[i+2] << 8) | Bytes[i+1];
                 // printf("%d\n", Data16);
                 if(Reg == 0b001)
                 {
