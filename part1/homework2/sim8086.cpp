@@ -106,6 +106,13 @@ int main(int argc, char *argv[])
                             strcat(Instructions,"[bp + di]");
                         }
                     }
+                    else if(RM == 0b110)
+                    {
+                        if(Mod == 0b00)
+                        {
+                           strcat(Instructions,"[bp]");
+                        }
+                    }
                 }
             }
             if(W == 0b1)
