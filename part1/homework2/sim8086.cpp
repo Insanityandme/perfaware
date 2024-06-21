@@ -95,8 +95,15 @@ int main(int argc, char *argv[])
                     else if(RM == 0b000)
                     {
                         if(Mod == 0b00)
+                        {                            
+                            strcat(Instructions,"[bx + si]");
+                        }
+                    }
+                    else if(RM == 0b011)
+                    {
+                        if(Mod == 0b00)
                         {
-                            strcat(Instructions, "[bx + si]");
+                            strcat(Instructions,"[bp + di]");
                         }
                     }
                 }
