@@ -92,68 +92,84 @@ int main(int argc, char *argv[])
                     {
                         strcat(Instructions, "dh, ");
                     }
-                    else if(RM == 0b000)
-                    {
-                        if(Mod == 0b00)
-                        {                            
-                            strcat(Instructions,"[bx + si]");
-                        }
-                    }
-                    else if(RM == 0b011)
-                    {
-                        if(Mod == 0b00)
-                        {
-                            strcat(Instructions,"[bp + di]");
-                        }
-                    }
-                    else if(RM == 0b110)
-                    {
-                        if(Mod == 0b00)
-                        {
-                           strcat(Instructions,"[bp]");
-                        }
-                    }
                 }
-            }
-            if(W == 0b1)
-            {
-                switch(Reg)
+
+                if(W == 0b1)
                 {
-                    case 0b111:
-                        strcat(Instructions, "di");
-                        break;
-                    case 0b011:
-                        strcat(Instructions, "bx");
-                        break;
-                    case 0b100:
-                        strcat(Instructions, "ah");
-                        break;
-                    case 0b000:
-                        strcat(Instructions, "ax");
-                        break;
-                    case 0b110:
-                        strcat(Instructions, "si");
-                        break;
+                    switch(Reg)
+                    {
+                        case 0b111:
+                            strcat(Instructions, "di");
+                            break;
+                        case 0b011:
+                            strcat(Instructions, "bx");
+                            break;
+                        case 0b100:
+                            strcat(Instructions, "ah");
+                            break;
+                        case 0b000:
+                            strcat(Instructions, "ax");
+                            break;
+                        case 0b110:
+                            strcat(Instructions, "si");
+                            break;
+                    }
                 }
-            }
-            else if(W == 0b0)
-            {
-                switch(Reg)
+                else if(W == 0b0)
                 {
-                    case 0b100:
-                        strcat(Instructions, "ah");
-                        break;
-                    case 0b101:
-                        strcat(Instructions, "ch");
-                        break;
-                    case 0b001:
-                        strcat(Instructions, "cl");
-                        break;
-                    case 0b000:
-                        strcat(Instructions, "al");
-                        break;
+                    switch(Reg)
+                    {
+                        case 0b100:
+                            strcat(Instructions, "ah");
+                            break;
+                        case 0b101:
+                            strcat(Instructions, "ch");
+                            break;
+                        case 0b001:
+                            strcat(Instructions, "cl");
+                            break;
+                        case 0b000:
+                            strcat(Instructions, "al");
+                            break;
+                    }
                 }
             }
+
+            if(Mod == 0b00)
+            {
+                if(W == 0b0)
+                {
+                    if(Reg == 0b000)
+                    {
+                        strcat(Instructions, "al, ");
+                    }
+                }
+                else if(W == 0b1)
+                {
+                    if(Reg == 0b011)
+                    {
+                        strcat(Instructions, "bx, ");
+                    }
+                    if(Reg == 0b010)
+                    {
+                        strcat(Instructions, "dx, ");
+                    }
+                }
+
+                if(RM == 0b000)
+                {
+                    strcat(Instructions, "[bx + si]");
+                }
+                else if(RM == 0b011)
+                {
+                    strcat(Instructions, "[bp + di]");
+                }
+                else if(RM == 0b110)
+                {
+                    strcat(Instructions, "[bp]");
+                }
+            }
+
             strcat(Instructions, "\n");
         }
         else if((Opcode >> 4) == 0b1011)
@@ -180,7 +196,6 @@ int main(int argc, char *argv[])
             else if(W == 0b1)
             {
                 Data16 = (Bytes[i+2] << 8) | Bytes[i+1];
-                // printf("%d\n", Data16);
                 if(Reg == 0b001)
                 {
                     strcat(Instructions, "cx, ");
