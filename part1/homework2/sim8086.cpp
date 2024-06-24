@@ -16,7 +16,7 @@ void printBits(unsigned char Byte) {
 int main(int argc, char *argv[])
 {
     FILE *Fp;
-    unsigned char Bytes[32];
+    unsigned char Bytes[50];
     char Instructions[200] = {0};
 
     Fp = fopen(argv[1], "rb");
@@ -26,7 +26,7 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    fread(Bytes, sizeof(char), 32, Fp);
+    fread(Bytes, sizeof(char), 50, Fp);
     fclose(Fp);
 
     unsigned char Opcode = 0;
@@ -38,9 +38,8 @@ int main(int argc, char *argv[])
     unsigned char Data8 = 0;
     unsigned short int Data16 = 0;
 
-    for(int i = 0; i < 32; i++)
+    for(int i = 0; i < 50; i++)
     {
-        printBits(Bytes[i]);
         Opcode = Bytes[i]; 
         if((Opcode >> 2) == 0b100010)
         {
@@ -150,10 +149,6 @@ int main(int argc, char *argv[])
                     {
                         strcat(Instructions, "bx, ");
                     }
-                    if(Reg == 0b010)
-                    {
-                        strcat(Instructions, "dx, ");
-                    }
                 }
 
                 if(RM == 0b000)
@@ -164,9 +159,106 @@ int main(int argc, char *argv[])
                 {
                     strcat(Instructions, "[bp + di]");
                 }
-                else if(RM == 0b110)
+            }
+
+            if(Mod == 0b01)
+            {
+                if(W == 0b1)
                 {
-                    strcat(Instructions, "[bp]");
+                    if(Reg == 0b010)
+                    {
+                        strcat(Instructions, "dx, ");
+                        if(RM == 0b110)
+                        {
+                            strcat(Instructions, "[bp]");
+                        }
+                    }
+                }
+            }
+
+            if(Mod == 0b01)
+            {
+                if(W == 0b0)
+                {
+                    if(Reg == 0b100)
+                    {
+                        strcat(Instructions, "ah, ");
+                    }
+                }
+                if(RM == 0b000)
+                {
+                    Data8 = Bytes[i+2];
+                    char Data8str[4];
+                    strcat(Instructions, "[bx + si + ");
+                    sprintf(Data8str, "%u]", Data8);
+                    strcat(Instructions, Data8str);
+                }
+            }
+            else if(Mod == 0b10)
+            {
+                if(W == 0b0)
+                {
+                    if(Reg == 0b000)
+                    {
+                        strcat(Instructions, "al, ");
+                    }
+                }
+
+                if(RM == 0b000)
+                {
+                    Data16 = (Bytes[i+3] << 8) | Bytes[i+2];
+                    char Data16str[20];
+                    strcat(Instructions, "[bx + si + ");
+                    sprintf(Data16str, "%hu]", Data16);
+                    strcat(Instructions, Data16str);
+                }
+            }
+
+            if(Mod == 0b00)
+            {
+                if(D == 0b0)
+                {
+                    if(RM == 0b001)
+                    {
+                        strcat(Instructions, "[bx + di], ");
+                    }
+                    else if(RM == 0b010)
+                    {
+                        strcat(Instructions, "[bp + si], ");
+                    }
+
+                    if(W == 0b1)
+                    {
+                        if(Reg == 0b001)
+                        {
+                            strcat(Instructions, "cx");
+                        }
+                    }
+                    else if(W == 0b0)
+                    {
+                        if(Reg == 0b001)
+                        {
+                            strcat(Instructions, "cl");
+                        }
+                    }
+                }
+            }
+            else if(Mod == 0b01)
+            {
+                if(D == 0b0)
+                {
+                    if(RM == 0b110)
+                    {
+                        strcat(Instructions, "[bp], ");
+                    }
+
+                    if(W == 0b0)
+                    {
+                        if(Reg == 0b101)
+                        {
+                            strcat(Instructions, "ch");
+                        }
+                    }
                 }
             }
 
