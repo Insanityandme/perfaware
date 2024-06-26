@@ -43,6 +43,7 @@ int main(int argc, char *argv[])
 
     for(int i = 0; i < 39; i++)
     {
+        printBits(Bytes[i]);
         Opcode = Bytes[i]; 
         if((Opcode >> 2) == 0b100010)
         {
@@ -54,133 +55,62 @@ int main(int argc, char *argv[])
             Reg = (Bytes[i+1] >> 3) & 0b111;
             RM = Bytes[i+1] & 0b111; 
 
-            if(Mod == 0b11)
+            if(W == 0b1)
             {
-                if(W == 0b1)
+                if(D == 0b0)
                 {
-                    switch(RM)
+                    if(Mod == 0b11)
                     {
-                        case 0b001:
-                            strcat(Instructions, "cx, ");
-                            break;
-                        case 0b010:
-                            strcat(Instructions, "dx, ");
-                            break;
-                        case 0b110:
-                            strcat(Instructions, "si, ");
-                            break;
-                        case 0b011:
-                            strcat(Instructions, "bx, ");
-                            break;
-                        case 0b100:
-                            strcat(Instructions, "sp, ");
-                            break;
-                        case 0b101:
-                            strcat(Instructions, "bp, ");
-                            break;
-                    }
-                }
-                else if(W == 0b0)
-                {
-                    if(RM == 0b101)
-                    {
-                        strcat(Instructions, "ch, ");
-                    }
-                    else if(RM == 0b000)
-                    {
-                        strcat(Instructions, "al, ");
-                    }
-                    else if(RM == 0b110)
-                    {
-                        strcat(Instructions, "dh, ");
-                    }
-                }
-
-                if(W == 0b1)
-                {
-                    switch(Reg)
-                    {
-                        case 0b111:
-                            strcat(Instructions, "di");
-                            break;
-                        case 0b011:
-                            strcat(Instructions, "bx");
-                            break;
-                        case 0b100:
-                            strcat(Instructions, "ah");
-                            break;
-                        case 0b000:
-                            strcat(Instructions, "ax");
-                            break;
-                        case 0b110:
-                            strcat(Instructions, "si");
-                            break;
-                    }
-                }
-                else if(W == 0b0)
-                {
-                    switch(Reg)
-                    {
-                        case 0b100:
-                            strcat(Instructions, "ah");
-                            break;
-                        case 0b101:
-                            strcat(Instructions, "ch");
-                            break;
-                        case 0b001:
-                            strcat(Instructions, "cl");
-                            break;
-                        case 0b000:
-                            strcat(Instructions, "al");
-                            break;
-                    }
-                }
-            }
-
-            if(Mod == 0b00)
-            {
-                if(W == 0b0)
-                {
-                    if(Reg == 0b000)
-                    {
-                        strcat(Instructions, "al, ");
-                    }
-                }
-                else if(W == 0b1)
-                {
-                    if(Reg == 0b011)
-                    {
-                        strcat(Instructions, "bx, ");
-                    }
-                    if(D == 0b1)
-                    {
-                        if(Reg == 0b101)
+                        switch(RM)
                         {
-                            strcat(Instructions, "bp, ");
+                            case 0b001:
+                                strcat(Instructions, "cx, ");
+                                break;
+                            case 0b010:
+                                strcat(Instructions, "dx, ");
+                                break;
+                            case 0b110:
+                                strcat(Instructions, "si, ");
+                                break;
+                            case 0b011:
+                                strcat(Instructions, "bx, ");
+                                break;
+                            case 0b100:
+                                strcat(Instructions, "sp, ");
+                                break;
+                            case 0b101:
+                                strcat(Instructions, "bp, ");
+                                break;
                         }
                     }
                 }
+                else if(Mod == 0b00)
+                {
+                    switch(Reg)
+                    {
+                        case 0b011:
+                            strcat(Instructions, "bx, ");
+                            break;
+                        case 0b000:
+                            strcat(Instructions, "al, ");
+                            break;
+                        case 0b101:
+                            if(D == 0b1)
+                            {
+                                strcat(Instructions, "bp, ");
+                            }
+                    }
 
-                if(RM == 0b000)
-                {
-                    strcat(Instructions, "[bx + si]");
+                    // Direct address
+                    if(RM == 0b110)
+                    {
+                        Data16 = (Bytes[i+3] << 8) | Bytes[i+2];
+                        char Data16str[20];
+                        sprintf(Data16str, "[%hu]", Data16);
+                        strcat(Instructions, Data16str);
+                    }
                 }
-                else if(RM == 0b011)
-                {
-                    strcat(Instructions, "[bp + di]");
-                }
-                else if(RM == 0b110)
-                {
-                    Data16 = (Bytes[i+3] << 8) | Bytes[i+2];
-                    char Data16str[20];
-                    sprintf(Data16str, "[%hu]", Data16);
-                    strcat(Instructions, Data16str);
-                }
-            }
-
-            if(Mod == 0b01)
-            {
-                if(W == 0b1)
+                else if(Mod == 0b01)
                 {
                     if(Reg == 0b010)
                     {
@@ -190,122 +120,217 @@ int main(int argc, char *argv[])
                             strcat(Instructions, "[bp]");
                         }
                     }
-                    else if(Reg == 0b000)
+                    else if(RM == 0b001)
                     {
-                        strcat(Instructions, "ax, ");
+                        Data8sig = Bytes[i+2];
+                        char Data8str[4];
+                        strcat(Instructions, "[bx + di ");
+                        sprintf(Data8str, "- %d]", -Data8sig);
+                        strcat(Instructions, Data8str);
+                    }
+                    else if(RM == 0b111)
+                    {
+                        Data8sig = Bytes[i+2];
+                        char Data8str[4];
+                        strcat(Instructions, "[bx ");
+                        sprintf(Data8str, "- %d]", -Data8sig);
+                        strcat(Instructions, Data8str);
+                    }
+                    else if(RM == 0b110)
+                    {
+                        if(D == 0b0)
+                        {
+                            strcat(Instructions, "[bp], ");
+                        }
                     }
                 }
-                else if(W == 0b0)
+                switch(Reg)
                 {
-                    if(Reg == 0b100)
+                    case 0b111:
+                        strcat(Instructions, "di");
+                        break;
+                    case 0b011:
+                        if(D == 0b0)
+                        {
+                            strcat(Instructions, "bx");
+                        }
+                        break;
+                    case 0b100:
+                        strcat(Instructions, "ah");
+                        break;
+                    case 0b000:
+                        if(D == 0b1)
+                        {
+                            strcat(Instructions, "ax, ");
+                        }
+                        else if(D == 0b0)
+                        {
+                            strcat(Instructions, "ax");
+                        }
+                        break;
+                    case 0b110:
+                        strcat(Instructions, "si");
+                        break;
+                }
+
+                if(Mod == 0b10)
+                {
+                    if(RM == 0b100)
                     {
-                        strcat(Instructions, "ah, ");
+                        Data16sig = (Bytes[i+3] << 8) | Bytes[i+2];
+                        char Data16str[20];
+                        strcat(Instructions, "[si ");
+                        sprintf(Data16str, "- %hd], ", -Data16sig);
+                        strcat(Instructions, Data16str);
                     }
-                }
 
-                if(RM == 0b000)
-                {
-                    Data8 = Bytes[i+2];
-                    char Data8str[4];
-                    strcat(Instructions, "[bx + si + ");
-                    sprintf(Data8str, "%u]", Data8);
-                    strcat(Instructions, Data8str);
-                }
-                else if(RM == 0b001)
-                {
-                    Data8sig = Bytes[i+2];
-                    char Data8str[4];
-                    strcat(Instructions, "[bx + di ");
-                    sprintf(Data8str, "- %d]", -Data8sig);
-                    strcat(Instructions, Data8str);
-                }
-                else if(RM == 0b111)
-                {
-                    Data8sig = Bytes[i+2];
-                    char Data8str[4];
-                    strcat(Instructions, "[bx ");
-                    sprintf(Data8str, "- %d]", -Data8sig);
-                    strcat(Instructions, Data8str);
-                }
-            }
-
-            if(Mod == 0b10)
-            {
-                if(RM == 0b100)
-                {
-                    Data16sig = (Bytes[i+3] << 8) | Bytes[i+2];
-                    char Data16str[20];
-                    strcat(Instructions, "[si ");
-                    sprintf(Data16str, "- %hd], ", -Data16sig);
-                    strcat(Instructions, Data16str);
-                }
-                if(W == 0b1)
-                {
                     if(Reg == 0b001)
                     {
                         strcat(Instructions, "cx");
                     }
                 }
-
-                if(W == 0b0)
+                else if(Mod == 0b00)
                 {
-                    if(Reg == 0b000)
+                    if(RM == 0b011)
                     {
-                        strcat(Instructions, "al, ");
+                        strcat(Instructions, "[bp + di]");
                     }
-                }
-
-                if(RM == 0b000)
-                {
-                    Data16 = (Bytes[i+3] << 8) | Bytes[i+2];
-                    char Data16str[20];
-                    strcat(Instructions, "[bx + si + ");
-                    sprintf(Data16str, "%hu]", Data16);
-                    strcat(Instructions, Data16str);
-                }
-            }
-
-            if(Mod == 0b00)
-            {
-                if(D == 0b0)
-                {
-                    if(RM == 0b001)
+                    else if(RM == 0b001)
                     {
-                        strcat(Instructions, "[bx + di], ");
-                    }
-
-                    if(W == 0b1)
-                    {
-                        if(Reg == 0b001)
+                        if(D == 0b0)
                         {
-                            strcat(Instructions, "cx");
-                        }
-                    }
-                    else if(W == 0b0)
-                    {
-                        if(Reg == 0b001)
-                        {
-                            strcat(Instructions, "cl");
+                            strcat(Instructions, "[bx + di], ");
                         }
                     }
                 }
-            }
-            else if(Mod == 0b01)
-            {
+
                 if(D == 0b0)
+                {
+                    if(Mod == 0b00)
+                    {
+                        switch(Reg)
+                        {
+                            case 0b001:
+                                strcat(Instructions, "cx");
+                                break;
+                        }
+                    }
+
+                }
+            }
+            else if(W == 0b0)
+            {
+                if(Mod == 0b11)
                 {
                     if(RM == 0b110)
                     {
-                        strcat(Instructions, "[bp], ");
+                        strcat(Instructions, "dh, ");
+                    }
+                }
+
+                switch(Reg)
+                {
+                    case 0b100:
+                        if(D == 0b0)
+                        {
+                            strcat(Instructions, "ah");
+                        }
+                        break;
+                    case 0b101:
+                        strcat(Instructions, "ch");
+                        break;
+                    case 0b001:
+                        if(D == 0b1)
+                        {
+                            strcat(Instructions, "cl");
+                        }
+                        break;
+                    case 0b000:
+                        if(D == 0b1)
+                        {
+                            strcat(Instructions, "al, ");
+                        }
+                        else if(D == 0b0)
+                        {
+                            strcat(Instructions, "al");
+                        }
+                        break;
+                }
+
+                if(Mod == 0b01)
+                {
+                    if(RM == 0b101)
+                    {
+                        strcat(Instructions, "ch, ");
+                    }
+                    else if(RM == 0b000)
+                    {
+                        strcat(Instructions, "al, ");
                     }
 
-                    if(W == 0b0)
+                    if(Reg == 0b100)
                     {
-                        if(Reg == 0b101)
+                        if (D == 0b0)
+                        {
+                            strcat(Instructions, "ah, ");
+                        }
+                    }
+                    else if(Reg == 0b101)
+                    {
+                        if(D == 0b0)
                         {
                             strcat(Instructions, "ch");
                         }
                     }
+                }
+                // TODO: Check if needed?
+                else if(Mod == 0b10)
+                {
+                    if(Reg == 0b000)
+                    {
+                        // strcat(Instructions, "al, ");
+                    }
+
+                }
+                else if(Mod == 0b00)
+                {
+                    if(RM == 0b000)
+                    {
+                        strcat(Instructions, "[bx + si]");
+                    }
+                }
+
+                if(D == 0b1)
+                {
+                    strcat(Instructions, "cl");
+                }
+
+                // Skip a byte to not let the Opcode interpret 
+                // displacements instead of the instruction encoding 
+                // it should.
+                i += 1;
+            }
+
+            if(Mod == 0b01)
+            {
+                if(RM == 0b000)
+                {
+                    Data8 = Bytes[i+1];
+                    char Data8str[4];
+                    strcat(Instructions, "[bx + si + ");
+                    sprintf(Data8str, "%u]", Data8);
+                    strcat(Instructions, Data8str);
+                }
+            }
+            else if(Mod == 0b10)
+            {
+                if(RM == 0b000)
+                {
+                    Data16 = (Bytes[i+2] << 8) | Bytes[i+1];
+                    char Data16str[20];
+                    strcat(Instructions, "[bx + si + ");
+                    sprintf(Data16str, "%hu]", Data16);
+                    strcat(Instructions, Data16str);
                 }
             }
 
@@ -366,6 +391,13 @@ int main(int argc, char *argv[])
                     {
                         strcat(Instructions, "[bp + di], ");
                     }
+                    if(W == 0b0)
+                    {
+                        Data8 = Bytes[i+2];
+                        char Data8str[4];
+                        sprintf(Data8str, "byte %u", Data8);
+                        strcat(Instructions, Data8str);
+                    }
                 }
             }
             else if(Mod == 0b10)
@@ -380,23 +412,16 @@ int main(int argc, char *argv[])
                         sprintf(Data16str, "+ %hu], ", Data16);
                         strcat(Instructions, Data16str);
                     }
+                    if(W == 0b1)
+                    {
+                        Data16 = (Bytes[i+5] << 8) | Bytes[i+4];
+                        char Data16str[20];
+                        sprintf(Data16str, "word %hu", Data16);
+                        strcat(Instructions, Data16str);
+                    }
                 }
             }
 
-            if(W == 0b0)
-            {
-                Data8 = Bytes[i+2];
-                char Data8str[4];
-                sprintf(Data8str, "byte %u", Data8);
-                strcat(Instructions, Data8str);
-            }
-            else if(W == 0b1)
-            {
-                Data16 = (Bytes[i+5] << 8) | Bytes[i+4];
-                char Data16str[20];
-                sprintf(Data16str, "word %hu", Data16);
-                strcat(Instructions, Data16str);
-            }
 
             strcat(Instructions, "\n");
         }
