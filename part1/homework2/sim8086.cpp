@@ -14,10 +14,25 @@ void printBits(unsigned char Byte) {
     printf("\n");
 }
 
+// Function to get the size of a file
+long getFileSize(const char *filename) {
+    FILE *file = fopen(filename, "rb"); // Open file in binary mode
+    long fileSize = -1;
+
+    if (file != NULL) {
+        fseek(file, 0, SEEK_END);   // Seek to the end of the file
+        fileSize = ftell(file);     // Get the current file pointer (which is the size)
+        fclose(file);               // Close the file
+    }
+
+    return fileSize;
+}
+
 int main(int argc, char *argv[])
 {
     FILE *Fp;
-    unsigned char Bytes[39];
+    long fileSize = getFileSize(argv[1]);
+    unsigned char Bytes[fileSize];
     char Instructions[1000] = {0};
 
     Fp = fopen(argv[1], "rb");
@@ -27,7 +42,7 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    fread(Bytes, sizeof(char), 39, Fp);
+    fread(Bytes, sizeof(char), fileSize, Fp);
     fclose(Fp);
 
     uint8_t Opcode = 0;
@@ -41,10 +56,11 @@ int main(int argc, char *argv[])
     uint16_t Data16 = 0;
     int16_t Data16sig = 0;
 
-    for(int i = 0; i < 39; i++)
+    for(int i = 0; i < fileSize; i++)
     {
-        printBits(Bytes[i]);
+        // printBits(Bytes[i]);
         Opcode = Bytes[i]; 
+
         if((Opcode >> 2) == 0b100010)
         {
             strcat(Instructions, "mov ");
@@ -84,7 +100,37 @@ int main(int argc, char *argv[])
                         }
                     }
                 }
-                else if(Mod == 0b00)
+
+                switch(Reg)
+                {
+                    case 0b111:
+                        strcat(Instructions, "di");
+                        break;
+                    case 0b011:
+                        if(D == 0b0)
+                        {
+                            strcat(Instructions, "bx");
+                        }
+                        break;
+                    case 0b100:
+                        strcat(Instructions, "ah");
+                        break;
+                    case 0b000:
+                        if(D == 0b1)
+                        {
+                            strcat(Instructions, "ax, ");
+                        }
+                        else if(D == 0b0)
+                        {
+                            strcat(Instructions, "ax");
+                        }
+                        break;
+                    case 0b110:
+                        strcat(Instructions, "si");
+                        break;
+                }
+
+                if(Mod == 0b00)
                 {
                     switch(Reg)
                     {
@@ -119,20 +165,20 @@ int main(int argc, char *argv[])
                         {
                             strcat(Instructions, "[bp]");
                         }
+                        else if(RM == 0b111)
+                        {
+                            Data8sig = Bytes[i+2];
+                            char Data8str[4];
+                            strcat(Instructions, "[bx ");
+                            sprintf(Data8str, "- %d]", -Data8sig);
+                            strcat(Instructions, Data8str);
+                        }
                     }
                     else if(RM == 0b001)
                     {
                         Data8sig = Bytes[i+2];
                         char Data8str[4];
                         strcat(Instructions, "[bx + di ");
-                        sprintf(Data8str, "- %d]", -Data8sig);
-                        strcat(Instructions, Data8str);
-                    }
-                    else if(RM == 0b111)
-                    {
-                        Data8sig = Bytes[i+2];
-                        char Data8str[4];
-                        strcat(Instructions, "[bx ");
                         sprintf(Data8str, "- %d]", -Data8sig);
                         strcat(Instructions, Data8str);
                     }
@@ -143,34 +189,6 @@ int main(int argc, char *argv[])
                             strcat(Instructions, "[bp], ");
                         }
                     }
-                }
-                switch(Reg)
-                {
-                    case 0b111:
-                        strcat(Instructions, "di");
-                        break;
-                    case 0b011:
-                        if(D == 0b0)
-                        {
-                            strcat(Instructions, "bx");
-                        }
-                        break;
-                    case 0b100:
-                        strcat(Instructions, "ah");
-                        break;
-                    case 0b000:
-                        if(D == 0b1)
-                        {
-                            strcat(Instructions, "ax, ");
-                        }
-                        else if(D == 0b0)
-                        {
-                            strcat(Instructions, "ax");
-                        }
-                        break;
-                    case 0b110:
-                        strcat(Instructions, "si");
-                        break;
                 }
 
                 if(Mod == 0b10)
@@ -191,16 +209,16 @@ int main(int argc, char *argv[])
                 }
                 else if(Mod == 0b00)
                 {
-                    if(RM == 0b011)
-                    {
-                        strcat(Instructions, "[bp + di]");
-                    }
-                    else if(RM == 0b001)
+                    if(RM == 0b001)
                     {
                         if(D == 0b0)
                         {
                             strcat(Instructions, "[bx + di], ");
                         }
+                    }
+                    else if(RM == 0b011)
+                    {
+                        strcat(Instructions, "[bp + di]");
                     }
                 }
 
@@ -215,8 +233,16 @@ int main(int argc, char *argv[])
                                 break;
                         }
                     }
+                    else if(Mod == 0b01)
+                    {
+                        if(RM == 0b110)
+                        {
+                            strcat(Instructions, "[bp], ");
+                        }
+                    }
 
                 }
+
             }
             else if(W == 0b0)
             {
@@ -227,6 +253,23 @@ int main(int argc, char *argv[])
                         strcat(Instructions, "dh, ");
                     }
                 }
+                else if(Mod == 0b00)
+                {
+                    if(RM == 0b010)
+                    {
+                        strcat(Instructions, "[bp + si], ");
+                    }
+                }
+                if(D == 0b0)
+                {
+                    if(Mod == 0b01)
+                    {
+                        if(RM == 0b110)
+                        {
+                            strcat(Instructions, "[bp], ");
+                        }
+                    }
+                }
 
                 switch(Reg)
                 {
@@ -235,12 +278,19 @@ int main(int argc, char *argv[])
                         {
                             strcat(Instructions, "ah");
                         }
+                        else if(D == 0b1)
+                        {
+                            strcat(Instructions, "ah, ");
+                        }
                         break;
                     case 0b101:
-                        strcat(Instructions, "ch");
+                        if(D == 0b1)
+                        {
+                            strcat(Instructions, "ch");
+                        }
                         break;
                     case 0b001:
-                        if(D == 0b1)
+                        if(D == 0b0)
                         {
                             strcat(Instructions, "cl");
                         }
@@ -263,59 +313,29 @@ int main(int argc, char *argv[])
                     {
                         strcat(Instructions, "ch, ");
                     }
-                    else if(RM == 0b000)
-                    {
-                        strcat(Instructions, "al, ");
-                    }
-
-                    if(Reg == 0b100)
-                    {
-                        if (D == 0b0)
-                        {
-                            strcat(Instructions, "ah, ");
-                        }
-                    }
-                    else if(Reg == 0b101)
-                    {
-                        if(D == 0b0)
-                        {
-                            strcat(Instructions, "ch");
-                        }
-                    }
-                }
-                // TODO: Check if needed?
-                else if(Mod == 0b10)
-                {
-                    if(Reg == 0b000)
-                    {
-                        // strcat(Instructions, "al, ");
-                    }
-
                 }
                 else if(Mod == 0b00)
                 {
                     if(RM == 0b000)
                     {
-                        strcat(Instructions, "[bx + si]");
+                        if(D == 0b1)
+                        {
+                            strcat(Instructions, "[bx + si]");
+                        }
                     }
                 }
 
-                if(D == 0b1)
+                if(Reg == 0b101)
                 {
-                    strcat(Instructions, "cl");
+                    strcat(Instructions, "ch");
                 }
-
-                // Skip a byte to not let the Opcode interpret 
-                // displacements instead of the instruction encoding 
-                // it should.
-                i += 1;
             }
 
             if(Mod == 0b01)
             {
                 if(RM == 0b000)
                 {
-                    Data8 = Bytes[i+1];
+                    Data8 = Bytes[i+2];
                     char Data8str[4];
                     strcat(Instructions, "[bx + si + ");
                     sprintf(Data8str, "%u]", Data8);
@@ -326,12 +346,17 @@ int main(int argc, char *argv[])
             {
                 if(RM == 0b000)
                 {
-                    Data16 = (Bytes[i+2] << 8) | Bytes[i+1];
+                    Data16 = (Bytes[i+3] << 8) | Bytes[i+2];
                     char Data16str[20];
                     strcat(Instructions, "[bx + si + ");
                     sprintf(Data16str, "%hu]", Data16);
                     strcat(Instructions, Data16str);
                 }
+            }
+
+            if(W == 0b0)
+            {
+                i += 1;
             }
 
             strcat(Instructions, "\n");
