@@ -2,9 +2,37 @@
 #include <string.h>
 #include <stdint.h>
 
-void printBits(unsigned char Byte) {
+char Instructions[3000];
+static int ByteIndex;
+
+uint8_t Count;
+uint8_t Opcode;
+uint8_t SecondByte;
+uint8_t ThirdByte;
+uint8_t FourthByte;
+uint8_t FifthByte;
+
+uint8_t D;
+uint8_t S;
+uint8_t W;
+uint8_t Mod;
+uint8_t Reg;
+uint8_t RM;
+
+uint8_t Data8;
+int8_t Data8sig;
+
+uint16_t Data16;
+int16_t Data16sig;
+
+char Data8str[20];
+
+void 
+printBits(unsigned char Byte) 
+{
     // Iterate through each bit position (from MSB to LSB)
-    for (int i = 7; i >= 0; --i) {
+    for (int i = 7; i >= 0; --i) 
+    {
         // Check if the i-th bit is set (1) or not (0)
         if (Byte & (1 << i))
             printf("1");
@@ -14,8 +42,27 @@ void printBits(unsigned char Byte) {
     printf("\n");
 }
 
+void
+data8ToStr(uint8_t D, uint8_t Data8) 
+{
+    if(D == 0b1)
+    {
+        char Data8str[20];
+        sprintf(Data8str, "+ %hu]", Data8);
+        strcat(Instructions, Data8str);
+    }
+    else if(D == 0b0)
+    {
+        char Data8str[20];
+        sprintf(Data8str, "+ %hu], ", Data8);
+        strcat(Instructions, Data8str);
+    }
+}
+
 // Function to get the size of a file
-long getFileSize(const char *filename) {
+long
+getFileSize(const char *filename) 
+{
     FILE *file = fopen(filename, "rb"); // Open file in binary mode
     long fileSize = -1;
 
@@ -28,12 +75,415 @@ long getFileSize(const char *filename) {
     return fileSize;
 }
 
+void 
+effectiveAddressCalculation(uint8_t D, uint8_t Mod, uint8_t RM, 
+                                 uint8_t ThirdByte,
+                                 uint8_t FourthByte,
+                                 unsigned char *Bytes)
+{
+    if(Mod == 0b00)
+    {
+        if(D == 0b0)
+        {
+            switch(RM)
+            {
+                case 0b000:
+                    strcat(Instructions, "[bx+si], ");
+                    break;
+                case 0b001:
+                    strcat(Instructions, "[bx+di], ");
+                    break;
+                case 0b010:
+                    strcat(Instructions, "[bp+si], ");
+                    break;
+                case 0b011:
+                    strcat(Instructions, "[bp+di], ");
+                    break;
+                case 0b100:
+                    strcat(Instructions, "[si], ");
+                    break;
+                case 0b101:
+                    strcat(Instructions, "[di], ");
+                    break;
+                case 0b110:
+                    ThirdByte = Bytes[++ByteIndex];
+                    FourthByte = Bytes[++ByteIndex];
+                    printBits(ThirdByte);
+                    printBits(FourthByte);
+
+                    Data16 = (FourthByte << 8) | ThirdByte;
+                    char Data16str[20];
+                    sprintf(Data16str, "[%hu]", Data16);
+                    strcat(Instructions, Data16str);
+                    break;
+                case 0b111:
+                    strcat(Instructions, "bh, ");
+                    break;
+            }
+        }
+        else if(D == 0b1)
+        {
+            switch(RM)
+            {
+                case 0b000:
+                    strcat(Instructions, "[bx+si]");
+                    break;
+                case 0b001:
+                    strcat(Instructions, "[bx+di]");
+                    break;
+                case 0b010:
+                    strcat(Instructions, "[bp+si]");
+                    break;
+                case 0b011:
+                    strcat(Instructions, "[bp+di]");
+                    break;
+                case 0b100:
+                    strcat(Instructions, "[si]");
+                    break;
+                case 0b101:
+                    strcat(Instructions, "[di]");
+                    break;
+                case 0b110:
+                    ThirdByte = Bytes[++ByteIndex];
+                    FourthByte = Bytes[++ByteIndex];
+                    printBits(ThirdByte);
+                    printBits(FourthByte);
+
+                    Data16 = (FourthByte << 8) | ThirdByte;
+                    char Data16str[20];
+                    sprintf(Data16str, "[%hu]", Data16);
+                    strcat(Instructions, Data16str);
+                    break;
+                case 0b111:
+                    strcat(Instructions, "bh");
+                    break;
+            }
+        }
+    }
+    else if(Mod == 0b01)
+    {
+        ThirdByte = Bytes[++ByteIndex];
+        printBits(ThirdByte);
+        switch(RM)
+        {
+            case 0b000:
+                strcat(Instructions, "[bx + si ");
+                break;
+            case 0b001:
+                strcat(Instructions, "[bx + di ");
+                break;
+            case 0b010:
+                strcat(Instructions, "[bp + si ");
+                break;
+            case 0b011:
+                strcat(Instructions, "[bp + di ");
+                break;
+            case 0b100:
+                strcat(Instructions, "[si ");
+                break;
+            case 0b101:
+                strcat(Instructions, "[di ");
+                break;
+            case 0b110:
+                strcat(Instructions, "[bp ");
+                break;
+            case 0b111:
+                strcat(Instructions, "[bx ");
+                break;
+        }
+
+        data8ToStr(D, ThirdByte);
+    }
+    else if(Mod == 0b10)
+    {
+        ThirdByte = Bytes[++ByteIndex];
+        FourthByte = Bytes[++ByteIndex];
+        printBits(ThirdByte);
+        printBits(FourthByte);
+    }
+}
+
+void regFieldEncoding(uint8_t D, uint8_t W, uint8_t Mod, uint8_t RM)
+{
+    if(W == 0b1)
+    {
+        if(D == 0b1)
+        {
+            switch(Reg)
+            {
+                case 0b000:
+                    strcat(Instructions, "ax, ");
+                    break;
+                case 0b001:
+                    strcat(Instructions, "cx, ");
+                    break;
+                case 0b010:
+                    strcat(Instructions, "dx, ");
+                    break;
+                case 0b011:
+                    strcat(Instructions, "bx, ");
+                    break;
+                case 0b100:
+                    strcat(Instructions, "sp, ");
+                    break;
+                case 0b101:
+                    strcat(Instructions, "bp, ");
+                    break;
+                case 0b110:
+                    strcat(Instructions, "si, ");
+                    break;
+                case 0b111:
+                    strcat(Instructions, "di, ");
+                    break;
+            }
+        }
+        else if(D == 0b0)
+        {
+            if(Mod == 0b11)
+            {
+                switch(RM)
+                {
+                    case 0b000:
+                        strcat(Instructions, "ax, ");
+                        break;
+                    case 0b001:
+                        strcat(Instructions, "cx");
+                        break;
+                    case 0b010:
+                        strcat(Instructions, "dx");
+                        break;
+                    case 0b011:
+                        strcat(Instructions, "bx");
+                        break;
+                    case 0b100:
+                        strcat(Instructions, "sp");
+                        break;
+                    case 0b101:
+                        strcat(Instructions, "bp");
+                        break;
+                    case 0b110:
+                        strcat(Instructions, "si");
+                        break;
+                    case 0b111:
+                        strcat(Instructions, "di");
+                        break;
+                }
+            }
+
+            switch(Reg)
+            {
+                case 0b000:
+                    strcat(Instructions, "ax");
+                    break;
+                case 0b001:
+                    strcat(Instructions, "cx");
+                    break;
+                case 0b010:
+                    strcat(Instructions, "dx");
+                    break;
+                case 0b011:
+                    strcat(Instructions, "bx");
+                    break;
+                case 0b100:
+                    strcat(Instructions, "sp");
+                    break;
+                case 0b101:
+                    strcat(Instructions, "bp");
+                    break;
+                case 0b110:
+                    strcat(Instructions, "si");
+                    break;
+                case 0b111:
+                    strcat(Instructions, "di");
+                    break;
+            }
+        }
+    }
+    else if(W == 0b0)
+    {
+        if(D == 0b1)
+        {
+            switch(Reg)
+            {
+                case 0b000:
+                    strcat(Instructions, "al, ");
+                    break;
+                case 0b001:
+                    strcat(Instructions, "cl, ");
+                    break;
+                case 0b010:
+                    strcat(Instructions, "dl, ");
+                    break;
+                case 0b011:
+                    strcat(Instructions, "bl, ");
+                    break;
+                case 0b100:
+                    strcat(Instructions, "ah, ");
+                    break;
+                case 0b101:
+                    strcat(Instructions, "ch, ");
+                    break;
+                case 0b110:
+                    strcat(Instructions, "dh, ");
+                    break;
+                case 0b111:
+                    strcat(Instructions, "bh, ");
+                    break;
+            }
+        }
+        else if(D == 0b0)
+        {
+            if(Mod == 0b11)
+            {
+                switch(RM)
+                {
+                    case 0b000:
+                        strcat(Instructions, "al, ");
+                        break;
+                    case 0b001:
+                        strcat(Instructions, "cl");
+                        break;
+                    case 0b010:
+                        strcat(Instructions, "dl");
+                        break;
+                    case 0b011:
+                        strcat(Instructions, "bl");
+                        break;
+                    case 0b100:
+                        strcat(Instructions, "ah");
+                        break;
+                    case 0b101:
+                        strcat(Instructions, "ch");
+                        break;
+                    case 0b110:
+                        strcat(Instructions, "dh");
+                        break;
+                    case 0b111:
+                        strcat(Instructions, "bh");
+                        break;
+                }
+            }
+            switch(Reg)
+            {
+                case 0b000:
+                    strcat(Instructions, "al");
+                    break;
+                case 0b001:
+                    strcat(Instructions, "cl");
+                    break;
+                case 0b010:
+                    strcat(Instructions, "dl");
+                    break;
+                case 0b011:
+                    strcat(Instructions, "bl");
+                    break;
+                case 0b100:
+                    strcat(Instructions, "ah");
+                    break;
+                case 0b101:
+                    strcat(Instructions, "ch");
+                    break;
+                case 0b110:
+                    strcat(Instructions, "dh");
+                    break;
+                case 0b111:
+                    strcat(Instructions, "bh");
+                    break;
+            }
+        }
+    }
+}
+
+void 
+immediateToRegisterMemory(uint8_t S, uint8_t W, 
+                          uint8_t Mod, uint8_t RM,
+                          unsigned char *Bytes)
+{
+    if(W == 0b1)
+    {
+        if(S == 0b1)
+        {
+            if(Mod == 0b11)
+            {
+                if(RM == 0b110)
+                {
+                    ThirdByte = Bytes[++ByteIndex];
+                    strcat(Instructions, "si, ");
+                    char Data8str[4];
+                    sprintf(Data8str, "%u", ThirdByte);
+                    strcat(Instructions, Data8str);
+                }
+                else if(RM == 0b101)
+                {
+                    ThirdByte = Bytes[++ByteIndex];
+                    strcat(Instructions, "bp, ");
+                    char Data8str[4];
+                    sprintf(Data8str, "%u", ThirdByte);
+                    strcat(Instructions, Data8str);
+                }
+                else if(RM == 0b001)
+                {
+                    ThirdByte = Bytes[++ByteIndex];
+                    strcat(Instructions, "cx, ");
+                    char Data8str[4];
+                    sprintf(Data8str, "%u", ThirdByte);
+                    strcat(Instructions, Data8str);
+                }
+            }
+            else if(Mod == 0b10)
+            {
+                if(RM == 0b010)
+                {
+                    strcat(Instructions, "word [bp + si + ");
+                    ThirdByte = Bytes[++ByteIndex];
+                    FourthByte = Bytes[++ByteIndex];
+
+                    Data16 = (FourthByte << 8) | ThirdByte;
+                    char Data16str[20];
+                    sprintf(Data16str, "%hu], ", Data16);
+                    strcat(Instructions, Data16str);
+
+                    FifthByte = Bytes[++ByteIndex];
+                    char Data8str[4];
+                    sprintf(Data8str, "%u", FifthByte);
+                    strcat(Instructions, Data8str);
+                }
+            }
+            else if(Mod == 0b00)
+            {
+                if(RM == 0b001)
+                {
+                    strcat(Instructions, "word [bx + di], ");
+                    ThirdByte = Bytes[++ByteIndex];
+                    char Data8str[4];
+                    sprintf(Data8str, "%u", ThirdByte);
+                    strcat(Instructions, Data8str);
+                }
+            }
+        }
+    }
+    else if(W == 0b0)
+    {
+        if(Mod == 0b00)
+        {
+            if(RM == 0b111)
+            {
+                ThirdByte = Bytes[++ByteIndex];
+                strcat(Instructions, "byte [bx], ");
+                char Data8str[4];
+                sprintf(Data8str, "%u", ThirdByte);
+                strcat(Instructions, Data8str);
+            }
+        }
+    }
+
+}
+
 int main(int argc, char *argv[])
 {
     FILE *Fp;
-    long fileSize = getFileSize(argv[1]);
-    unsigned char Bytes[fileSize];
-    char Instructions[3000] = {0};
+    long FileSize = getFileSize(argv[1]);
+    unsigned char Bytes[FileSize];
 
     Fp = fopen(argv[1], "rb");
     if (Fp == NULL) 
@@ -42,28 +492,15 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    fread(Bytes, sizeof(char), fileSize, Fp);
+    fread(Bytes, sizeof(char), FileSize, Fp);
     fclose(Fp);
 
-    uint8_t Count = 0;
-    uint8_t Opcode = 0;
-    uint8_t SecondByte = 0;
-    uint8_t ThirdByte = 0;
-    uint8_t FourthByte = 0;
-    uint8_t D = 0;
-    uint8_t W = 0;
-    uint8_t Mod = 0;
-    uint8_t Reg = 0;
-    uint8_t RM = 0;
-    uint8_t Data8 = 0;
-    int8_t Data8sig = 0;
-    uint16_t Data16 = 0;
-    int16_t Data16sig = 0;
+    printf("FileSize: %d\n", FileSize);
 
-    for(int i = 0; i < fileSize; i++)
+    for(ByteIndex = 0; ByteIndex < FileSize; ByteIndex++)
     {
-        Opcode = Bytes[i]; 
-        SecondByte = Bytes[++i];
+        Opcode = Bytes[ByteIndex]; 
+        SecondByte = Bytes[++ByteIndex];
         Reg = (SecondByte >> 3) & 0b111;
 
         if((Opcode >> 2) == 0b100010)
@@ -71,7 +508,6 @@ int main(int argc, char *argv[])
             strcat(Instructions, "mov ");
             D = (Opcode >> 1) & 0b1; 
             W = Opcode & 0b1;
-            SecondByte = Bytes[i+1];
             Mod = (SecondByte >> 6);
             Reg = (SecondByte >> 3) & 0b111;
             RM = SecondByte & 0b111; 
@@ -155,7 +591,7 @@ int main(int argc, char *argv[])
                     // Direct address
                     if(RM == 0b110)
                     {
-                        Data16 = (Bytes[i+3] << 8) | Bytes[i+2];
+                        Data16 = (Bytes[ByteIndex+3] << 8) | Bytes[ByteIndex+2];
                         char Data16str[20];
                         sprintf(Data16str, "[%hu]", Data16);
                         strcat(Instructions, Data16str);
@@ -172,7 +608,7 @@ int main(int argc, char *argv[])
                         }
                         else if(RM == 0b111)
                         {
-                            Data8sig = Bytes[i+2];
+                            Data8sig = Bytes[ByteIndex+2];
                             char Data8str[4];
                             strcat(Instructions, "[bx ");
                             sprintf(Data8str, "- %d]", -Data8sig);
@@ -181,7 +617,7 @@ int main(int argc, char *argv[])
                     }
                     else if(RM == 0b001)
                     {
-                        Data8sig = Bytes[i+2];
+                        Data8sig = Bytes[ByteIndex+2];
                         char Data8str[4];
                         strcat(Instructions, "[bx + di ");
                         sprintf(Data8str, "- %d]", -Data8sig);
@@ -200,7 +636,7 @@ int main(int argc, char *argv[])
                 {
                     if(RM == 0b100)
                     {
-                        Data16sig = (Bytes[i+3] << 8) | Bytes[i+2];
+                        Data16sig = (Bytes[ByteIndex+3] << 8) | Bytes[ByteIndex+2];
                         char Data16str[20];
                         strcat(Instructions, "[si ");
                         sprintf(Data16str, "- %hd], ", -Data16sig);
@@ -340,7 +776,7 @@ int main(int argc, char *argv[])
             {
                 if(RM == 0b000)
                 {
-                    Data8 = Bytes[i+2];
+                    Data8 = Bytes[ByteIndex+2];
                     char Data8str[4];
                     strcat(Instructions, "[bx + si + ");
                     sprintf(Data8str, "%u]", Data8);
@@ -351,7 +787,7 @@ int main(int argc, char *argv[])
             {
                 if(RM == 0b000)
                 {
-                    Data16 = (Bytes[i+3] << 8) | Bytes[i+2];
+                    Data16 = (Bytes[ByteIndex+3] << 8) | Bytes[ByteIndex+2];
                     char Data16str[20];
                     strcat(Instructions, "[bx + si + ");
                     sprintf(Data16str, "%hu]", Data16);
@@ -369,7 +805,7 @@ int main(int argc, char *argv[])
             Reg = Opcode & 0x07;
             if(W == 0b0)
             {
-                SecondByte = Bytes[i+1];
+                SecondByte = Bytes[ByteIndex+1];
                 Data8 = SecondByte;
                 if(Reg == 0b001)
                 {
@@ -385,8 +821,8 @@ int main(int argc, char *argv[])
             }
             else if(W == 0b1)
             {
-                SecondByte = Bytes[i+1];
-                Data16 = (Bytes[i+2] << 8) | SecondByte;
+                SecondByte = Bytes[ByteIndex+1];
+                Data16 = (Bytes[ByteIndex+2] << 8) | SecondByte;
                 if(Reg == 0b001)
                 {
                     strcat(Instructions, "cx, ");
@@ -405,7 +841,7 @@ int main(int argc, char *argv[])
         else if((Opcode >> 1) == 0b1100011)
         {
             W = Opcode & 0b1;
-            SecondByte = Bytes[i+1];
+            SecondByte = Bytes[ByteIndex+1];
             Mod = (SecondByte >> 6);
             Reg = (SecondByte >> 3) & 0b111;
             RM = SecondByte & 0b111; 
@@ -421,7 +857,7 @@ int main(int argc, char *argv[])
                     }
                     if(W == 0b0)
                     {
-                        Data8 = Bytes[i+2];
+                        Data8 = Bytes[ByteIndex+2];
                         char Data8str[4];
                         sprintf(Data8str, "byte %u", Data8);
                         strcat(Instructions, Data8str);
@@ -435,14 +871,14 @@ int main(int argc, char *argv[])
                     if(RM == 0b101)
                     {
                         strcat(Instructions, "[di ");
-                        Data16 = (Bytes[i+3] << 8) | Bytes[i+2];
+                        Data16 = (Bytes[ByteIndex+3] << 8) | Bytes[ByteIndex+2];
                         char Data16str[20];
                         sprintf(Data16str, "+ %hu], ", Data16);
                         strcat(Instructions, Data16str);
                     }
                     if(W == 0b1)
                     {
-                        Data16 = (Bytes[i+5] << 8) | Bytes[i+4];
+                        Data16 = (Bytes[ByteIndex+5] << 8) | Bytes[ByteIndex+4];
                         char Data16str[20];
                         sprintf(Data16str, "word %hu", Data16);
                         strcat(Instructions, Data16str);
@@ -457,8 +893,8 @@ int main(int argc, char *argv[])
         {
             strcat(Instructions, "mov ax, ");
 
-            SecondByte = Bytes[i+1];
-            Data16 = (Bytes[i+2] << 8) | SecondByte;
+            SecondByte = Bytes[ByteIndex+1];
+            Data16 = (Bytes[ByteIndex+2] << 8) | SecondByte;
             char Data16str[20];
             sprintf(Data16str, "[%hu]", Data16);
             strcat(Instructions, Data16str);
@@ -467,17 +903,16 @@ int main(int argc, char *argv[])
         }
         else if((Opcode >> 1) == 0b1010001)
         {
-            SecondByte = Bytes[i+1];
-            Data16 = (Bytes[i+2] << 8) | SecondByte;
+            SecondByte = Bytes[ByteIndex+1];
+            Data16 = (Bytes[ByteIndex+2] << 8) | SecondByte;
             char Data16str[24];
             sprintf(Data16str, "mov [%hu], ", Data16);
             strcat(Instructions, Data16str);
             strcat(Instructions, "ax");
             strcat(Instructions, "\n");
         }
-        else if((Opcode >> 2) == 0b000000 ||
-                ((Opcode >> 2) == 0b100000 && Reg == 0b000) ||
-                (Opcode >> 2) == 0b000010)
+        // Reg/memory with register to either - Add
+        else if((Opcode >> 2) == 0b000000)
         {
             printBits(Opcode);
             printBits(SecondByte);
@@ -485,168 +920,227 @@ int main(int argc, char *argv[])
             strcat(Instructions, "add ");         
             Count++;
 
-            W = Opcode & 0b1;
             D = (Opcode >> 1) & 0b1; 
+            W = Opcode & 0b1;
             Mod = SecondByte >> 6;
             RM = SecondByte & 0b111; 
 
-            if(W == 0b1)
+            if(D == 0b1)
             {
-                if(Reg == 0b011)
-                {
-                    strcat(Instructions, "bx, ");
-                }
+                regFieldEncoding(D, W, Mod, RM);
+                effectiveAddressCalculation(D, Mod, RM, ThirdByte, FourthByte, Bytes);
             }
-            else if(W == 0b0)
+            else if(D == 0b0)
             {
-            }
-
-            if(Mod == 0b00)
-            {
-                RM = SecondByte & 0b111;
-                if(RM == 0b110)
-                {
-                    ThirdByte = Bytes[++i];
-                    FourthByte = Bytes[++i];
-                    printBits(ThirdByte);
-                    printBits(FourthByte);
-                }
-                else if(RM == 0b000)
-                {
-                    strcat(Instructions, "[bx+si]");
-                }
-            }
-            else if(Mod == 0b01)
-            {
-                ThirdByte = Bytes[++i];
-                printf("hi");
-                printBits(ThirdByte);
-                if(RM == 0b110)
-                {
-                    strcat(Instructions, "[bp]");
-                }
-            }
-            else if(Mod == 0b10)
-            {
-                ThirdByte = Bytes[++i];
-                FourthByte = Bytes[++i];
-                printBits(ThirdByte);
-                printBits(FourthByte);
-            }
-            else if(Mod == 0b11)
-            {
+                effectiveAddressCalculation(D, Mod, RM, ThirdByte, FourthByte, Bytes);
+                regFieldEncoding(D, W, Mod, RM);
             }
 
             printf("\n\n");
             strcat(Instructions, "\n");
         }
-        else if((Opcode >> 2) == 0b001010)
+        // Immediate from memory - Add
+        else if(((Opcode >> 2) == 0b100000 && Reg == 0b000))
         {
-            SecondByte = Bytes[++i];
-            Mod = SecondByte >> 6;
-            Reg = (SecondByte >> 3) & 0b111;
+            printBits(Opcode);
+            printBits(SecondByte);
+            printBits(ThirdByte);
 
-            // Immediate to register/memory
-            if(Reg == 0b000)
+            strcat(Instructions, "add ");         
+            Count++;
+
+            W = Opcode & 0b1;
+            S = (Opcode >> 1) & 0b1; 
+            Mod = SecondByte >> 6;
+            RM = SecondByte & 0b111; 
+
+            immediateToRegisterMemory(S, W, Mod, RM, Bytes);
+
+            printf("\n\n");
+            strcat(Instructions, "\n");
+        }
+        // Immediate from accumulator - Add
+        else if((Opcode >> 1) == 0b0000010)
+        {
+            printBits(Opcode);
+            printBits(SecondByte);
+            strcat(Instructions, "add ");
+            W = Opcode & 0b1;
+            if(W == 0b1)
             {
+                strcat(Instructions, "ax, ");
+                ThirdByte == Bytes[++ByteIndex];
+                Data16 = (ThirdByte << 8) | SecondByte;
+                char Data16str[20];
+                sprintf(Data16str, "%hu", Data16);
+                strcat(Instructions, Data16str);
+            }
+            else if(W == 0b0)
+            {
+                strcat(Instructions, "al, ");
+                char Data8str[4];
+                sprintf(Data8str, "%d", SecondByte);
+                strcat(Instructions, Data8str);
             }
 
+            Count++;
+            printf("\n\n");
+            strcat(Instructions, "\n");
+        }
+        // Immediate to register/memory - Sub
+        else if((Opcode >> 2) == 0b001010)
+        {
             printBits(Opcode);
             printBits(SecondByte);
 
             strcat(Instructions, "sub ");         
             Count++;
-            if(Mod == 0b00)
+
+            D = (Opcode >> 1) & 0b1; 
+            W = Opcode & 0b1;
+            Mod = SecondByte >> 6;
+            RM = SecondByte & 0b111; 
+
+            if(D == 0b1)
             {
-                RM = SecondByte & 0b111;
-                if(RM == 0b110)
-                {
-                    ThirdByte = Bytes[++i];
-                    FourthByte = Bytes[++i];
-                    printBits(ThirdByte);
-                    printBits(FourthByte);
-                }
+                regFieldEncoding(D, W, Mod, RM);
+                effectiveAddressCalculation(D, Mod, RM, ThirdByte, FourthByte, Bytes);
             }
-            else if(Mod == 0b01)
+            else if(D == 0b0)
             {
-                ThirdByte = Bytes[++i];
-                printBits(ThirdByte);
-            }
-            else if(Mod == 0b10)
-            {
-                ThirdByte = Bytes[++i];
-                FourthByte = Bytes[++i];
-                printBits(ThirdByte);
-                printBits(FourthByte);
-            }
-            else if(Mod == 0b11)
-            {
+                effectiveAddressCalculation(D, Mod, RM, ThirdByte, FourthByte, Bytes);
+                regFieldEncoding(D, W, Mod, RM);
             }
 
             printf("\n\n");
             strcat(Instructions, "\n");
         }
+        // Immediate from memory - Sub
+        else if(((Opcode >> 2) == 0b100000 && Reg == 0b101))
+        {
+            printBits(Opcode);
+            printBits(SecondByte);
+            printBits(ThirdByte);
+
+            strcat(Instructions, "sub ");         
+            Count++;
+
+            W = Opcode & 0b1;
+            S = (Opcode >> 1) & 0b1; 
+            Mod = SecondByte >> 6;
+            RM = SecondByte & 0b111; 
+
+            immediateToRegisterMemory(S, W, Mod, RM, Bytes);
+
+            printf("\n\n");
+            strcat(Instructions, "\n");
+        }
+        // Immediate from accumulator - Sub
+        else if((Opcode >> 1) == 0b0010110)
+        {
+            printBits(Opcode);
+            printBits(SecondByte);
+            strcat(Instructions, "sub ");
+            W = Opcode & 0b1;
+            if(W == 0b1)
+            {
+                strcat(Instructions, "ax, ");
+                ThirdByte == Bytes[++ByteIndex];
+                printBits(ThirdByte);
+                Data16 = (ThirdByte << 8) | SecondByte;
+                char Data16str[20];
+                sprintf(Data16str, "%hu", Data16);
+                strcat(Instructions, Data16str);
+            }
+            else if(W == 0b0)
+            {
+                strcat(Instructions, "al, ");
+                char Data8str[4];
+                sprintf(Data8str, "%d", SecondByte);
+                strcat(Instructions, Data8str);
+            }
+
+            Count++;
+            printf("\n\n");
+            strcat(Instructions, "\n");
+        }
+        // Immediate to register/memory - Cmp
         else if((Opcode >> 2) == 0b001110)
         {
-            SecondByte = Bytes[++i];
-            Mod = SecondByte >> 6;
-
             printBits(Opcode);
             printBits(SecondByte);
 
             strcat(Instructions, "cmp ");         
             Count++;
-            if(Mod == 0b00)
+
+            D = (Opcode >> 1) & 0b1; 
+            W = Opcode & 0b1;
+            Mod = SecondByte >> 6;
+            RM = SecondByte & 0b111; 
+
+            if(D == 0b1)
             {
-                RM = SecondByte & 0b111;
-                if(RM == 0b110)
-                {
-                    ThirdByte = Bytes[++i];
-                    FourthByte = Bytes[++i];
-                    printBits(ThirdByte);
-                    printBits(FourthByte);
-                }
+                regFieldEncoding(D, W, Mod, RM);
+                effectiveAddressCalculation(D, Mod, RM, ThirdByte, FourthByte, Bytes);
             }
-            else if(Mod == 0b01)
+            else if(D == 0b0)
             {
-                ThirdByte = Bytes[++i];
-                printBits(ThirdByte);
-            }
-            else if(Mod == 0b10)
-            {
-                ThirdByte = Bytes[++i];
-                FourthByte = Bytes[++i];
-                printBits(ThirdByte);
-                printBits(FourthByte);
-            }
-            else if(Mod == 0b11)
-            {
+                effectiveAddressCalculation(D, Mod, RM, ThirdByte, FourthByte, Bytes);
+                regFieldEncoding(D, W, Mod, RM);
             }
 
             printf("\n\n");
             strcat(Instructions, "\n");
         }
-        // Immediate from register/memory for add/sub/cmp
-        // else if((Opcode >> 2) == 0b100000)
-        // {
-        //     SecondByte = Bytes[++i];
-        //     Reg = (SecondByte >> 3) & 0b111;
-        //     if(Reg == 0b000)
-        //     {
-        //         Count++;
-        //         strcat(Instructions, "add ");
-        //     }
-        //     else if(Reg == 0b101)
-        //     {
-        //         strcat(Instructions, "sub ");
-        //     }
-        //     else if(Reg == 0b111)
-        //     {
-        //         strcat(Instructions, "cmp ");
-        //     }
+        // Immediate from memory - Cmp
+        else if(((Opcode >> 2) == 0b100000 && Reg == 0b111))
+        {
+            printBits(Opcode);
+            printBits(SecondByte);
+            printBits(ThirdByte);
 
-        //     strcat(Instructions, "\n");
-        // }
+            strcat(Instructions, "cmp ");         
+            Count++;
+
+            W = Opcode & 0b1;
+            S = (Opcode >> 1) & 0b1; 
+            Mod = SecondByte >> 6;
+            RM = SecondByte & 0b111; 
+
+            immediateToRegisterMemory(S, W, Mod, RM, Bytes);
+
+            printf("\n\n");
+            strcat(Instructions, "\n");
+        }
+        // Immediate from accumulator - Cmp
+        else if((Opcode >> 1) == 0b0011110)
+        {
+            printBits(Opcode);
+            printBits(SecondByte);
+            strcat(Instructions, "cmp ");
+            W = Opcode & 0b1;
+            if(W == 0b1)
+            {
+                strcat(Instructions, "ax, ");
+                ThirdByte == Bytes[++ByteIndex];
+                printBits(ThirdByte);
+                Data16 = (ThirdByte << 8) | SecondByte;
+                char Data16str[20];
+                sprintf(Data16str, "%hu", Data16);
+                strcat(Instructions, Data16str);
+            }
+            else if(W == 0b0)
+            {
+                strcat(Instructions, "al, ");
+                char Data8str[4];
+                sprintf(Data8str, "%d", SecondByte);
+                strcat(Instructions, Data8str);
+            }
+
+            Count++;
+            printf("\n\n");
+            strcat(Instructions, "\n");
+        }
     }
 
     printf("Count: %d\n", Count);
