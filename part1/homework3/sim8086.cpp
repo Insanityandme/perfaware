@@ -108,8 +108,8 @@ effectiveAddressCalculation(uint8_t D, uint8_t Mod, uint8_t RM,
                 case 0b110:
                     ThirdByte = Bytes[++ByteIndex];
                     FourthByte = Bytes[++ByteIndex];
-                    printBits(ThirdByte);
-                    printBits(FourthByte);
+                    // printBits(ThirdByte);
+                    // printBits(FourthByte);
 
                     Data16 = (FourthByte << 8) | ThirdByte;
                     char Data16str[20];
@@ -146,8 +146,8 @@ effectiveAddressCalculation(uint8_t D, uint8_t Mod, uint8_t RM,
                 case 0b110:
                     ThirdByte = Bytes[++ByteIndex];
                     FourthByte = Bytes[++ByteIndex];
-                    printBits(ThirdByte);
-                    printBits(FourthByte);
+                    // printBits(ThirdByte);
+                    // printBits(FourthByte);
 
                     Data16 = (FourthByte << 8) | ThirdByte;
                     char Data16str[20];
@@ -163,7 +163,7 @@ effectiveAddressCalculation(uint8_t D, uint8_t Mod, uint8_t RM,
     else if(Mod == 0b01)
     {
         ThirdByte = Bytes[++ByteIndex];
-        printBits(ThirdByte);
+        // printBits(ThirdByte);
         switch(RM)
         {
             case 0b000:
@@ -198,8 +198,8 @@ effectiveAddressCalculation(uint8_t D, uint8_t Mod, uint8_t RM,
     {
         ThirdByte = Bytes[++ByteIndex];
         FourthByte = Bytes[++ByteIndex];
-        printBits(ThirdByte);
-        printBits(FourthByte);
+        // printBits(ThirdByte);
+        // printBits(FourthByte);
     }
 }
 
@@ -459,6 +459,22 @@ immediateToRegisterMemory(uint8_t S, uint8_t W,
                     sprintf(Data8str, "%u", ThirdByte);
                     strcat(Instructions, Data8str);
                 }
+                else if(RM == 0b110)
+                {
+                    strcat(Instructions, "word ");
+                    ThirdByte = Bytes[++ByteIndex];
+                    FourthByte = Bytes[++ByteIndex];
+
+                    Data16 = (FourthByte << 8) | ThirdByte;
+                    char Data16str[20];
+                    sprintf(Data16str, "[%hu], ", Data16);
+                    strcat(Instructions, Data16str);
+
+                    FifthByte = Bytes[++ByteIndex];
+                    char Data8str[4];
+                    sprintf(Data8str, "%u", FifthByte);
+                    strcat(Instructions, Data8str);
+                }
             }
         }
     }
@@ -495,7 +511,7 @@ int main(int argc, char *argv[])
     fread(Bytes, sizeof(char), FileSize, Fp);
     fclose(Fp);
 
-    printf("FileSize: %d\n", FileSize);
+    // printf("FileSize: %d\n", FileSize);
 
     for(ByteIndex = 0; ByteIndex < FileSize; ByteIndex++)
     {
@@ -914,8 +930,8 @@ int main(int argc, char *argv[])
         // Reg/memory with register to either - Add
         else if((Opcode >> 2) == 0b000000)
         {
-            printBits(Opcode);
-            printBits(SecondByte);
+            // printBits(Opcode);
+            // printBits(SecondByte);
 
             strcat(Instructions, "add ");         
             Count++;
@@ -942,9 +958,9 @@ int main(int argc, char *argv[])
         // Immediate from memory - Add
         else if(((Opcode >> 2) == 0b100000 && Reg == 0b000))
         {
-            printBits(Opcode);
-            printBits(SecondByte);
-            printBits(ThirdByte);
+            // printBits(Opcode);
+            // printBits(SecondByte);
+            // printBits(ThirdByte);
 
             strcat(Instructions, "add ");         
             Count++;
@@ -962,14 +978,14 @@ int main(int argc, char *argv[])
         // Immediate from accumulator - Add
         else if((Opcode >> 1) == 0b0000010)
         {
-            printBits(Opcode);
-            printBits(SecondByte);
+            // printBits(Opcode);
+            // printBits(SecondByte);
             strcat(Instructions, "add ");
             W = Opcode & 0b1;
             if(W == 0b1)
             {
                 strcat(Instructions, "ax, ");
-                ThirdByte == Bytes[++ByteIndex];
+                ThirdByte = Bytes[++ByteIndex];
                 Data16 = (ThirdByte << 8) | SecondByte;
                 char Data16str[20];
                 sprintf(Data16str, "%hu", Data16);
@@ -990,8 +1006,8 @@ int main(int argc, char *argv[])
         // Immediate to register/memory - Sub
         else if((Opcode >> 2) == 0b001010)
         {
-            printBits(Opcode);
-            printBits(SecondByte);
+            // printBits(Opcode);
+            // printBits(SecondByte);
 
             strcat(Instructions, "sub ");         
             Count++;
@@ -1018,9 +1034,9 @@ int main(int argc, char *argv[])
         // Immediate from memory - Sub
         else if(((Opcode >> 2) == 0b100000 && Reg == 0b101))
         {
-            printBits(Opcode);
-            printBits(SecondByte);
-            printBits(ThirdByte);
+            // printBits(Opcode);
+            // printBits(SecondByte);
+            // printBits(ThirdByte);
 
             strcat(Instructions, "sub ");         
             Count++;
@@ -1038,15 +1054,15 @@ int main(int argc, char *argv[])
         // Immediate from accumulator - Sub
         else if((Opcode >> 1) == 0b0010110)
         {
-            printBits(Opcode);
-            printBits(SecondByte);
+            // printBits(Opcode);
+            // printBits(SecondByte);
             strcat(Instructions, "sub ");
             W = Opcode & 0b1;
             if(W == 0b1)
             {
                 strcat(Instructions, "ax, ");
-                ThirdByte == Bytes[++ByteIndex];
-                printBits(ThirdByte);
+                ThirdByte = Bytes[++ByteIndex];
+                // printBits(ThirdByte);
                 Data16 = (ThirdByte << 8) | SecondByte;
                 char Data16str[20];
                 sprintf(Data16str, "%hu", Data16);
@@ -1067,8 +1083,8 @@ int main(int argc, char *argv[])
         // Immediate to register/memory - Cmp
         else if((Opcode >> 2) == 0b001110)
         {
-            printBits(Opcode);
-            printBits(SecondByte);
+            // printBits(Opcode);
+            // printBits(SecondByte);
 
             strcat(Instructions, "cmp ");         
             Count++;
@@ -1095,9 +1111,9 @@ int main(int argc, char *argv[])
         // Immediate from memory - Cmp
         else if(((Opcode >> 2) == 0b100000 && Reg == 0b111))
         {
-            printBits(Opcode);
-            printBits(SecondByte);
-            printBits(ThirdByte);
+            // printBits(Opcode);
+            // printBits(SecondByte);
+            // printBits(ThirdByte);
 
             strcat(Instructions, "cmp ");         
             Count++;
@@ -1115,18 +1131,19 @@ int main(int argc, char *argv[])
         // Immediate from accumulator - Cmp
         else if((Opcode >> 1) == 0b0011110)
         {
-            printBits(Opcode);
-            printBits(SecondByte);
+            // printBits(Opcode);
+            // printBits(SecondByte);
             strcat(Instructions, "cmp ");
             W = Opcode & 0b1;
             if(W == 0b1)
             {
                 strcat(Instructions, "ax, ");
-                ThirdByte == Bytes[++ByteIndex];
-                printBits(ThirdByte);
+                ThirdByte = Bytes[++ByteIndex];
+                // printBits(ThirdByte);
+
                 Data16 = (ThirdByte << 8) | SecondByte;
                 char Data16str[20];
-                sprintf(Data16str, "%hu", Data16);
+                sprintf(Data16str, "%hu, ", Data16);
                 strcat(Instructions, Data16str);
             }
             else if(W == 0b0)
@@ -1141,9 +1158,157 @@ int main(int argc, char *argv[])
             printf("\n\n");
             strcat(Instructions, "\n");
         }
+
+        switch(Opcode)
+        {
+            case 0b01110100:
+                strcat(Instructions, "je label");
+
+                Data8sig = SecondByte;
+                char Data8str[4];
+                sprintf(Data8str, "; -%d", -Data8sig);
+                strcat(Instructions, Data8str);
+
+                strcat(Instructions, "\n");
+                break;
+            case 0b01111100:
+                strcat(Instructions, "jl label ");
+                Data8sig = SecondByte;
+                sprintf(Data8str, "; -%d", -Data8sig);
+                strcat(Instructions, Data8str);
+                strcat(Instructions, "\n");
+                break;
+            case 0b01111110:
+                strcat(Instructions, "jle label ");
+                Data8sig = SecondByte;
+                sprintf(Data8str, "; -%d", -Data8sig);
+                strcat(Instructions, Data8str);
+                strcat(Instructions, "\n");
+                break;
+            case 0b01110010:
+                strcat(Instructions, "jb label ");
+                Data8sig = SecondByte;
+                sprintf(Data8str, "; -%d", -Data8sig);
+                strcat(Instructions, Data8str);
+                strcat(Instructions, "\n");
+                break;
+            case 0b01110110:
+                strcat(Instructions, "jbe label ");
+                Data8sig = SecondByte;
+                sprintf(Data8str, "; -%d", -Data8sig);
+                strcat(Instructions, Data8str);
+                strcat(Instructions, "\n");
+                break;
+            case 0b01111010:
+                strcat(Instructions, "jp label ");
+                Data8sig = SecondByte;
+                sprintf(Data8str, "; -%d", -Data8sig);
+                strcat(Instructions, Data8str);
+                strcat(Instructions, "\n");
+                break;
+            case 0b01110000:
+                strcat(Instructions, "jo label ");
+                Data8sig = SecondByte;
+                sprintf(Data8str, "; -%d", -Data8sig);
+                strcat(Instructions, Data8str);
+                strcat(Instructions, "\n");
+                break;
+            case 0b01111000:
+                strcat(Instructions, "js label ");
+                Data8sig = SecondByte;
+                sprintf(Data8str, "; -%d", -Data8sig);
+                strcat(Instructions, Data8str);
+                strcat(Instructions, "\n");
+                break;
+            case 0b01110101:
+                strcat(Instructions, "jne label ");
+                Data8sig = SecondByte;
+                sprintf(Data8str, "; %d", -Data8sig);
+                strcat(Instructions, Data8str);
+                strcat(Instructions, "\n");
+                break;
+            case 0b01111101:
+                strcat(Instructions, "jnl label ");
+                Data8sig = SecondByte;
+                sprintf(Data8str, "; -%d", -Data8sig);
+                strcat(Instructions, Data8str);
+                strcat(Instructions, "\n");
+                break;
+            case 0b01111111:
+                strcat(Instructions, "jg label ");
+                Data8sig = SecondByte;
+                sprintf(Data8str, "; -%d", -Data8sig);
+                strcat(Instructions, Data8str);
+                strcat(Instructions, "\n");
+                break;
+            case 0b01110011:
+                strcat(Instructions, "jnb label ");
+                Data8sig = SecondByte;
+                sprintf(Data8str, "; -%d", -Data8sig);
+                strcat(Instructions, Data8str);
+                strcat(Instructions, "\n");
+                break;
+            case 0b01110111:
+                strcat(Instructions, "ja label ");
+                Data8sig = SecondByte;
+                sprintf(Data8str, "; -%d", -Data8sig);
+                strcat(Instructions, Data8str);
+                strcat(Instructions, "\n");
+                break;
+            case 0b01111011:
+                strcat(Instructions, "jnp label ");
+                Data8sig = SecondByte;
+                sprintf(Data8str, "; -%d", -Data8sig);
+                strcat(Instructions, Data8str);
+                strcat(Instructions, "\n");
+                break;
+            case 0b01110001:
+                strcat(Instructions, "jno label ");
+                Data8sig = SecondByte;
+                sprintf(Data8str, "; -%d", -Data8sig);
+                strcat(Instructions, Data8str);
+                strcat(Instructions, "\n");
+                break;
+            case 0b01111001:
+                strcat(Instructions, "jns label ");
+                Data8sig = SecondByte;
+                sprintf(Data8str, "; -%d", -Data8sig);
+                strcat(Instructions, Data8str);
+                strcat(Instructions, "\n");
+                break;
+            case 0b11100010:
+                strcat(Instructions, "loop label ");
+                Data8sig = SecondByte;
+                sprintf(Data8str, "; -%d", -Data8sig);
+                strcat(Instructions, Data8str);
+                strcat(Instructions, "\n");
+                break;
+            case 0b11100001:
+                strcat(Instructions, "loopz label ");
+                Data8sig = SecondByte;
+                sprintf(Data8str, "; -%d", -Data8sig);
+                strcat(Instructions, Data8str);
+                strcat(Instructions, "\n");
+                break;
+            case 0b11100000:
+                strcat(Instructions, "loopnz label ");
+                Data8sig = SecondByte;
+                sprintf(Data8str, "; -%d", -Data8sig);
+                strcat(Instructions, Data8str);
+                strcat(Instructions, "\n");
+                break;
+            case 0b11100011:
+                strcat(Instructions, "jcxz label ");
+                Data8sig = SecondByte;
+                sprintf(Data8str, "; -%d", -Data8sig);
+                strcat(Instructions, Data8str);
+                strcat(Instructions, "\n");
+                break;
+
+        }
     }
 
-    printf("Count: %d\n", Count);
+    // printf("Count: %d\n", Count);
     printf("; %s disassembly:\n", argv[1]);
     printf("bits 16\n");
     printf("%s\n", Instructions);
