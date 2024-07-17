@@ -41,19 +41,19 @@ int main(int argc, char *argv[])
         if(i % 2 == 0)
         {
             Opcode = Bytes[i] >> 2; 
-            D = (Bytes[i] >> 1) & 0b1; // Shift right by 6 bits and mask with 0x01 (binary: 00000001)
-            W = Bytes[i] & 0b1; // Shift right by 6 bits and mask with 0x01 (binary: 00000001)
+            D = (Bytes[i] >> 1) & 0b1; 
+            W = Bytes[i] & 0b1;
 
-            if(Opcode == 0b100010) // 100010
+            if(Opcode == 0b100010)
             {
                 strcat(Instructions, "mov ");
             }
         }
         else 
         {
-            Mod = (Bytes[i] >> 6); // Shift right by 6 bits and mask with 0x03
-            Reg = (Bytes[i] >> 3) & 0b111; // Shift right by 3 bits and mask with 0x07
-            RM = Bytes[i] & 0b111; // Mask with 0x07 to isolate the last three bits
+            Mod = (Bytes[i] >> 6);
+            Reg = (Bytes[i] >> 3) & 0b111;
+            RM = Bytes[i] & 0b111; 
 
             if(Mod == 0b11)
             {

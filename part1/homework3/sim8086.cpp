@@ -495,13 +495,13 @@ immediateToRegisterMemory(uint8_t S, uint8_t W,
 
 }
 
-int main(int argc, char *argv[])
+int main(int ArgCount, char **Args)
 {
     FILE *Fp;
-    long FileSize = getFileSize(argv[1]);
+    long FileSize = getFileSize(Args[1]);
     unsigned char Bytes[FileSize];
 
-    Fp = fopen(argv[1], "rb");
+    Fp = fopen(Args[1], "rb");
     if (Fp == NULL) 
     {
         perror("Error opening file");
@@ -1309,7 +1309,7 @@ int main(int argc, char *argv[])
     }
 
     // printf("Count: %d\n", Count);
-    printf("; %s disassembly:\n", argv[1]);
+    printf("; %s disassembly:\n", Args[1]);
     printf("bits 16\n");
     printf("%s\n", Instructions);
 
