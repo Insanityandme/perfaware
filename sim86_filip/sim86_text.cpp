@@ -146,3 +146,115 @@ static void PrintInstruction(instruction Instruction, FILE *Dest)
         }
     }
 }
+
+static void PrintSimulatedInstruction(sim_register *Registers, instruction Instruction, FILE *Dest)
+{
+    u32 Flags = Instruction.Flags;
+    u32 W = Flags & Inst_Wide;
+
+    if(Flags & Inst_Lock)
+    {
+        if(Instruction.Op == Op_xchg)
+        {
+            // NOTE(casey): This is just a stupidity for matching assembler expectations.
+            instruction_operand Temp = Instruction.Operands[0];
+            Instruction.Operands[0] = Instruction.Operands[1];
+            Instruction.Operands[1] = Temp;
+        }
+        fprintf(Dest, "lock ");
+    }
+
+    char const *MnemonicSuffix = "";
+    if(Flags & Inst_Rep)
+    {
+        printf("rep ");
+        MnemonicSuffix = W ? "w" : "b";
+    }
+
+    fprintf(Dest, "%s%s ", GetMnemonic(Instruction.Op), MnemonicSuffix);
+
+    char const *Seperator = "";
+
+    char const *DestinationRegName = "";
+    u8 DestinationRegIndex = 0;
+
+    for(u32 OperandIndex = 0; OperandIndex < ArrayCount(Instruction.Operands); ++OperandIndex)
+    {
+        instruction_operand Operand = Instruction.Operands[OperandIndex];
+
+        if(Operand.Type != Operand_None)
+        {
+            fprintf(Dest, "%s", Seperator);
+            Seperator = ", ";
+
+            switch(Operand.Type)
+            {
+                case Operand_None: {} break;
+
+                case Operand_Register:
+                {
+                    DestinationRegIndex = Operand.Register.Index - 1;
+
+                    fprintf(Dest, "%s", GetRegName(Operand.Register));
+                } break;
+                                   
+                case Operand_Memory:
+                {
+                    effective_address_expression Address = Operand.Address;
+
+                    if(Instruction.Operands[0].Type != Operand_Register)
+                    {
+                        fprintf(Dest, "%s ", W ? "word" : "byte");
+                    }
+
+                    if(Flags & Inst_Segment)
+                    {
+                        printf("%s:", GetRegName({Address.Segment, 0, 2}));
+                    }
+
+                    fprintf(Dest, "[%s", GetEffectiveAddressExpression(Address));
+                    if(Address.Displacement != 0)
+                    {
+                        fprintf(Dest, "%+d", Address.Displacement); 
+                    }
+                    fprintf(Dest, "]");
+                } break;
+
+                case Operand_Immediate:
+                {
+                    fprintf(Dest, "%d", Operand.ImmediateS32);
+                    Registers[DestinationRegIndex].RegisterValue = (u16)Operand.ImmediateS32;
+                } break;
+
+                case Operand_RelativeImmediate:
+                {
+                    fprintf(Dest, "$%+d", Operand.ImmediateS32);
+                } break;
+            }
+        }
+    }
+    
+    u8 SourceRegIndex = Instruction.Operands[0].Register.Index - 1;
+    DestinationRegName = GetRegName(Instruction.Operands[0].Register);
+
+    fprintf(Dest, " ; %s:0x%x->0x%x", DestinationRegName,
+                                      Registers[SourceRegIndex].PreviousRegisterValue, 
+                                      Registers[DestinationRegIndex].RegisterValue);
+
+    // Store previous value in PreviousRegisterValue
+    Registers[SourceRegIndex].PreviousRegisterValue = Registers[SourceRegIndex].RegisterValue;
+
+    // Move value in source register to destination register
+    Registers[SourceRegIndex].RegisterValue = Registers[DestinationRegIndex].RegisterValue;
+}
+
+static void PrintFinalRegisters(sim_register *Registers, u8 RegisterSize)
+{
+    printf("\nFinal registers:\n");
+    for(int Index = 0; Index < RegisterSize; ++Index)
+    {
+        printf("\t%s: 0x%04x (%d)\n", Registers[Index].RegName, 
+                                      Registers[Index].RegisterValue,
+                                      Registers[Index].RegisterValue);
+    }
+}
