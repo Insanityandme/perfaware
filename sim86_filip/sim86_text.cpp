@@ -147,7 +147,8 @@ static void PrintInstruction(instruction Instruction, FILE *Dest)
     }
 }
 
-static void PrintSimulatedInstruction(sim_register *Registers, instruction Instruction, FILE *Dest)
+static void PrintSimulatedInstruction(sim_register *Registers, flags *RegFlags, 
+                                      instruction Instruction, FILE *Dest)
 {
     u32 Flags = Instruction.Flags;
     u32 W = Flags & Inst_Wide;
@@ -175,9 +176,6 @@ static void PrintSimulatedInstruction(sim_register *Registers, instruction Instr
 
     char const *Seperator = "";
 
-    char const *DestinationRegName = "";
-    u8 DestinationRegIndex = 0;
-
     for(u32 OperandIndex = 0; OperandIndex < ArrayCount(Instruction.Operands); ++OperandIndex)
     {
         instruction_operand Operand = Instruction.Operands[OperandIndex];
@@ -193,8 +191,6 @@ static void PrintSimulatedInstruction(sim_register *Registers, instruction Instr
 
                 case Operand_Register:
                 {
-                    DestinationRegIndex = Operand.Register.Index - 1;
-
                     fprintf(Dest, "%s", GetRegName(Operand.Register));
                 } break;
                                    
@@ -223,7 +219,6 @@ static void PrintSimulatedInstruction(sim_register *Registers, instruction Instr
                 case Operand_Immediate:
                 {
                     fprintf(Dest, "%d", Operand.ImmediateS32);
-                    Registers[DestinationRegIndex].RegisterValue = (u16)Operand.ImmediateS32;
                 } break;
 
                 case Operand_RelativeImmediate:
@@ -233,28 +228,78 @@ static void PrintSimulatedInstruction(sim_register *Registers, instruction Instr
             }
         }
     }
-    
-    u8 SourceRegIndex = Instruction.Operands[0].Register.Index - 1;
-    DestinationRegName = GetRegName(Instruction.Operands[0].Register);
 
-    fprintf(Dest, " ; %s:0x%x->0x%x", DestinationRegName,
-                                      Registers[SourceRegIndex].PreviousRegisterValue, 
-                                      Registers[DestinationRegIndex].RegisterValue);
+    u8 DestRegIndex = Instruction.Operands[0].Register.Index - 1;
 
-    // Store previous value in PreviousRegisterValue
-    Registers[SourceRegIndex].PreviousRegisterValue = Registers[SourceRegIndex].RegisterValue;
+    char const *InstructionOp = GetMnemonic(Instruction.Op);
+    if(InstructionOp == "mov")
+    {
+        char const *DestinationRegName = GetRegName(Instruction.Operands[0].Register);
+        fprintf(Dest, " ; %s:0x%x->0x%x", DestinationRegName,
+                                          Registers[DestRegIndex].PreviousRegisterValue, 
+                                          Registers[DestRegIndex].RegisterValue);
+    }
+    else if(InstructionOp == "sub")
+    {
+        char const *DestinationRegName = GetRegName(Instruction.Operands[0].Register);
+        fprintf(Dest, " ; %s:0x%x->0x%x ", DestinationRegName,
+                                          Registers[DestRegIndex].PreviousRegisterValue, 
+                                          Registers[DestRegIndex].RegisterValue);
+        fprintf(Dest, "flags:->");
+        if(RegFlags->SF)
+        {
+            fprintf(Dest, "S");
+        }
+        if(RegFlags->PF)
+        {
+            fprintf(Dest, "P");
+        }
+        if(RegFlags->ZF)
+        {
+            fprintf(Dest, "Z");
+        }
 
-    // Move value in source register to destination register
-    Registers[SourceRegIndex].RegisterValue = Registers[DestinationRegIndex].RegisterValue;
+    }
+    else if(InstructionOp == "add")
+    {
+        char const *DestinationRegName = GetRegName(Instruction.Operands[0].Register);
+        fprintf(Dest, " ; %s:0x%x->0x%x", DestinationRegName,
+                                          Registers[DestRegIndex].PreviousRegisterValue, 
+                                          Registers[DestRegIndex].RegisterValue);
+    }
+    else if(InstructionOp == "cmp")
+    {
+        fprintf(Dest, " ; flags:%s->", RegFlags->SF ? "S": "");
+    }
 }
 
-static void PrintFinalRegisters(sim_register *Registers, u8 RegisterSize)
+static void PrintFinalRegisters(sim_register *Registers, flags *Flags, u8 RegisterSize, FILE *Dest)
 {
     printf("\nFinal registers:\n");
     for(int Index = 0; Index < RegisterSize; ++Index)
     {
-        printf("\t%s: 0x%04x (%d)\n", Registers[Index].RegName, 
-                                      Registers[Index].RegisterValue,
-                                      Registers[Index].RegisterValue);
+        if(Registers[Index].RegName != 0 && Registers[Index].RegisterValue != 0)
+        {
+            fprintf(Dest, "\t%s: 0x%04x (%d)\n", Registers[Index].RegName, 
+                                          Registers[Index].RegisterValue,
+                                          Registers[Index].RegisterValue);
+        }
+    }
+
+    if(Flags->SF || Flags->PF || Flags->ZF)
+    {
+        fprintf(Dest, "   Flags: ");
+    }
+    if(Flags->SF)
+    {
+        fprintf(Dest, "S");
+    }
+    if(Flags->PF)
+    {
+        fprintf(Dest, "P");
+    }
+    if(Flags->ZF)
+    {
+        fprintf(Dest, "Z");
     }
 }

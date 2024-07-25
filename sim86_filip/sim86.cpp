@@ -8,6 +8,7 @@
 #include "sim86_memory.cpp"
 #include "sim86_text.cpp"
 #include "sim86_decode.cpp"
+#include "sim86_simulator.cpp"
 
 static void DisAsm8086(memory *Memory, u32 DisAsmByteCount, segmented_access DisAsmStart)
 {
@@ -48,14 +49,8 @@ static void DisAsm8086(memory *Memory, u32 DisAsmByteCount, segmented_access Dis
 
 static void Simulate8086(memory *Memory, u32 DisAsmByteCount, segmented_access DisAsmStart)
 {
-    sim_register Registers[11] = {
-        {0, 0, "ax",}, {0, 0, "bx"}, 
-        {0, 0, "cx",}, {0, 0, "dx"},
-        {0, 0, "sp",}, {0, 0, "bp"}, 
-        {0, 0, "si",}, {0, 0, "di"},
-        {0, 0, "es",}, {0, 0, "ss",}, {0, 0, "ds"},
-
-    };
+    sim_register Registers[14] = {};
+    flags Flags = {};
 
     segmented_access At = DisAsmStart;
 
@@ -78,9 +73,12 @@ static void Simulate8086(memory *Memory, u32 DisAsmByteCount, segmented_access D
             }
 
             UpdateContext(&Context, Instruction);
+
+            SimulateInstruction(Registers, &Flags, Instruction);
+
             if(IsPrintable(Instruction))
             {
-                PrintSimulatedInstruction(Registers, Instruction, stdout);
+                PrintSimulatedInstruction(Registers, &Flags, Instruction, stdout);
                 printf("\n");
             }
         }
@@ -91,7 +89,7 @@ static void Simulate8086(memory *Memory, u32 DisAsmByteCount, segmented_access D
         }
     }
 
-    PrintFinalRegisters(Registers, ArrayCount(Registers));
+    PrintFinalRegisters(Registers, &Flags, ArrayCount(Registers), stdout);
 }
 
 int main(int ArgCount, char **Args)
