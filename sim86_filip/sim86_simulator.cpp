@@ -1,5 +1,5 @@
 static void SimulateInstruction(sim_register *Registers, flags *RegFlags, 
-                                      instruction Instruction)
+                                      instruction Instruction, segmented_access *At)
 {
     u32 Flags = Instruction.Flags;
     u32 W = Flags & Inst_Wide;
@@ -17,7 +17,6 @@ static void SimulateInstruction(sim_register *Registers, flags *RegFlags,
 
     u8 LatestRegIndex = 0;
     u16 Immediate = 0;
-
     for(u32 OperandIndex = 0; OperandIndex < ArrayCount(Instruction.Operands); ++OperandIndex)
     {
         instruction_operand Operand = Instruction.Operands[OperandIndex];
@@ -33,7 +32,6 @@ static void SimulateInstruction(sim_register *Registers, flags *RegFlags,
                 {
                     LatestRegIndex = Operand.Register.Index - 1;
                     Registers[LatestRegIndex].RegName = GetRegName(Operand.Register);
-
                 } break;
                                    
                 case Operand_Memory:
@@ -48,73 +46,104 @@ static void SimulateInstruction(sim_register *Registers, flags *RegFlags,
 
                 case Operand_RelativeImmediate:
                 {
+                    Immediate = (u16)Operand.ImmediateS32;
                 } break;
             }
         }
     }
 
-    u8 DestRegIndex = Instruction.Operands[0].Register.Index - 1;
+    u8 DestRegIndex = 0;
+    u8 SourceRegIndex = 0;
 
-    // Store previous value in PreviousRegisterValue
-    Registers[DestRegIndex].PreviousRegisterValue = Registers[DestRegIndex].RegisterValue;
-
-    char const *InstructionOp = GetMnemonic(Instruction.Op);
-    if(InstructionOp == "mov")
+    if(Instruction.Operands)
     {
-        // Move value in source register to destination register
+        if(Instruction.Operands[0].Type == Operand_Register)
+        {
+            DestRegIndex = Instruction.Operands[0].Register.Index - 1;
+            Registers[DestRegIndex].PreviousRegisterValue = Registers[DestRegIndex].RegisterValue;
+        }
         if(Instruction.Operands[1].Type == Operand_Register)
         {
-            Registers[DestRegIndex].RegisterValue = Registers[LatestRegIndex].RegisterValue;
-        }
-        else
-        {
-            Registers[DestRegIndex].RegisterValue = Immediate;
+            SourceRegIndex = Instruction.Operands[1].Register.Index - 1;
         }
     }
-    else if(InstructionOp == "sub")
+
+
+    switch(Instruction.Op)
     {
-        u16 Parity = 0;
+        case Op_mov:
+        {
+            if(Instruction.Operands[1].Type == Operand_Register)
+            {
+                Registers[DestRegIndex].RegisterValue = Registers[LatestRegIndex].RegisterValue;
+            }
+            else
+            {
+                Registers[DestRegIndex].RegisterValue = Immediate;
+            }
 
-        u16 SubResult = Registers[DestRegIndex].RegisterValue - Registers[LatestRegIndex].RegisterValue;
-        Registers[DestRegIndex].RegisterValue = SubResult;
+        } break;
+        case Op_add:
+        {
+            u16 AddResult = Registers[DestRegIndex].RegisterValue + Immediate; 
 
-        if(SubResult == 0)
-        {
-            RegFlags->ZF = true;
-        }
+            RegFlags->AF = ((Registers[DestRegIndex].RegisterValue & 0x0F) + (Immediate & 0x0F)) > 0x0F;
 
-        if(SubResult & 0x8000)
+            Registers[LatestRegIndex].RegisterValue = AddResult;
+        } break;
+        case Op_sub:
         {
-            RegFlags->SF = true;
-        }
-        else
-        {
-            RegFlags->SF = false;
-        }
+            u16 SubResult = 0;
 
-        while(SubResult)
-        {
-            Parity ^= 1;
-            SubResult &= (SubResult - 1);
-        }
+            // Means that there is no source register
+            if(Registers[SourceRegIndex].RegisterValue == 0)
+            {
+                SubResult = Registers[DestRegIndex].RegisterValue - Immediate;    
+            }
+            else 
+            {
+                SubResult = Registers[DestRegIndex].RegisterValue - Registers[SourceRegIndex].RegisterValue;
+            }
 
-        if(Parity)
+            RegFlags->AF = ((Registers[DestRegIndex].RegisterValue & 0x0F) -
+                            (Registers[LatestRegIndex].RegisterValue & 0x0F)) < 0;
+            RegFlags->CF = Registers[DestRegIndex].RegisterValue < Registers[LatestRegIndex].RegisterValue;
+
+            Registers[DestRegIndex].RegisterValue = SubResult;
+
+            RegFlags->ZF = (SubResult == 0);
+            RegFlags->SF = (SubResult & 0x8000);
+
+            u16 Parity = 0;
+            while(SubResult)
+            {
+                Parity ^= 1;
+                SubResult &= (SubResult - 1);
+            }
+
+            RegFlags->PF = !Parity;
+        } break;
+        case Op_jne:
         {
-            // Odd
-            RegFlags->PF = false;
-        }
-        else 
+            if(RegFlags->ZF == 1)
+            {
+                break;
+            }
+
+            Registers[13].RegisterValue = -Immediate;
+            At->SegmentOffset = -Immediate;
+        } break;
+        case Op_loop:
         {
-            // Even
-            RegFlags->PF = true;
-        }
-    }
-    else if(InstructionOp == "add")
-    {
-        u16 AddResult = Registers[DestRegIndex].RegisterValue + Immediate; 
-        Registers[LatestRegIndex].RegisterValue = AddResult;
-    }
-    else if(InstructionOp == "cmp")
-    {
+            printf("loop");
+        } break;
+        case Op_loopz:
+        {
+            printf("loopz");
+        } break;
+        case Op_loopnz:
+        {
+            printf("loopnz");
+        } break;
     }
 }

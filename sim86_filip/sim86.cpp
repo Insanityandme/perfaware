@@ -1,7 +1,7 @@
 #include "sim86.h"
 
-#include "sim86_simulator.h"
 #include "sim86_memory.h"
+#include "sim86_simulator.h"
 #include "sim86_text.h"
 #include "sim86_decode.h"
 
@@ -50,37 +50,33 @@ static void DisAsm8086(memory *Memory, u32 DisAsmByteCount, segmented_access Dis
 static void Simulate8086(memory *Memory, u32 DisAsmByteCount, segmented_access DisAsmStart)
 {
     sim_register Registers[14] = {};
+    Registers[13].RegName = "ip";
+    Registers[13].RegisterValue = 0;
     flags Flags = {};
 
     segmented_access At = DisAsmStart;
 
     disasm_context Context = DefaultDisAsmContext();
 
-    u32 Count = DisAsmByteCount;
-    while(Count)
+    u32 InstructionSize = DisAsmByteCount;
+    // Run until the value in the IP is greater than the file size loaded
+    while(Registers[13].RegisterValue < InstructionSize)
     {
         instruction Instruction = DecodeInstruction(&Context, Memory, &At);
         if(Instruction.Op)
         {
-            if(Count >= Instruction.Size)
-            {
-                Count -= Instruction.Size;
-            }
-            else
-            {
-                fprintf(stderr, "ERROR: Instruction extends outside disassembly region\n");
-                break;
-            }
-
             UpdateContext(&Context, Instruction);
+            Registers[13].RegisterValue = At.SegmentOffset;
 
-            SimulateInstruction(Registers, &Flags, Instruction);
+            SimulateInstruction(Registers, &Flags, Instruction, &At);
 
             if(IsPrintable(Instruction))
             {
                 PrintSimulatedInstruction(Registers, &Flags, Instruction, stdout);
                 printf("\n");
             }
+
+            Registers[13].PreviousRegisterValue = Registers[13].RegisterValue;
         }
         else
         {

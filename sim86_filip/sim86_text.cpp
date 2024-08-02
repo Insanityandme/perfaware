@@ -175,11 +175,9 @@ static void PrintSimulatedInstruction(sim_register *Registers, flags *RegFlags,
     fprintf(Dest, "%s%s ", GetMnemonic(Instruction.Op), MnemonicSuffix);
 
     char const *Seperator = "";
-
     for(u32 OperandIndex = 0; OperandIndex < ArrayCount(Instruction.Operands); ++OperandIndex)
     {
         instruction_operand Operand = Instruction.Operands[OperandIndex];
-
         if(Operand.Type != Operand_None)
         {
             fprintf(Dest, "%s", Seperator);
@@ -232,44 +230,52 @@ static void PrintSimulatedInstruction(sim_register *Registers, flags *RegFlags,
     u8 DestRegIndex = Instruction.Operands[0].Register.Index - 1;
 
     char const *InstructionOp = GetMnemonic(Instruction.Op);
-    if(InstructionOp == "mov")
-    {
-        char const *DestinationRegName = GetRegName(Instruction.Operands[0].Register);
-        fprintf(Dest, " ; %s:0x%x->0x%x", DestinationRegName,
-                                          Registers[DestRegIndex].PreviousRegisterValue, 
-                                          Registers[DestRegIndex].RegisterValue);
-    }
-    else if(InstructionOp == "sub")
-    {
-        char const *DestinationRegName = GetRegName(Instruction.Operands[0].Register);
-        fprintf(Dest, " ; %s:0x%x->0x%x ", DestinationRegName,
-                                          Registers[DestRegIndex].PreviousRegisterValue, 
-                                          Registers[DestRegIndex].RegisterValue);
-        fprintf(Dest, "flags:->");
-        if(RegFlags->SF)
-        {
-            fprintf(Dest, "S");
-        }
-        if(RegFlags->PF)
-        {
-            fprintf(Dest, "P");
-        }
-        if(RegFlags->ZF)
-        {
-            fprintf(Dest, "Z");
-        }
+    char const *DestinationRegName = GetRegName(Instruction.Operands[0].Register);
 
-    }
-    else if(InstructionOp == "add")
+    switch(Instruction.Op)
     {
-        char const *DestinationRegName = GetRegName(Instruction.Operands[0].Register);
-        fprintf(Dest, " ; %s:0x%x->0x%x", DestinationRegName,
-                                          Registers[DestRegIndex].PreviousRegisterValue, 
-                                          Registers[DestRegIndex].RegisterValue);
-    }
-    else if(InstructionOp == "cmp")
-    {
-        fprintf(Dest, " ; flags:%s->", RegFlags->SF ? "S": "");
+        case Op_mov:
+            fprintf(Dest, " ; %s:0x%x->0x%x ip:0x%x->0x%x ", DestinationRegName,
+                                               Registers[DestRegIndex].PreviousRegisterValue, 
+                                               Registers[DestRegIndex].RegisterValue,
+                                               Registers[13].PreviousRegisterValue,
+                                               Registers[13].RegisterValue);
+            break;
+        case Op_sub:
+            fprintf(Dest, " ; %s:0x%x->0x%x ip:0x%x->0x%x ", DestinationRegName,
+                                               Registers[DestRegIndex].PreviousRegisterValue, 
+                                               Registers[DestRegIndex].RegisterValue,
+                                               Registers[13].PreviousRegisterValue,
+                                               Registers[13].RegisterValue);
+            fprintf(Dest, "flags:");
+            fprintf(Dest, RegFlags->AF ? "": "A->");
+            fprintf(Dest, RegFlags->CF ? "C": "");
+            fprintf(Dest, RegFlags->SF ? "S": "");
+            fprintf(Dest, RegFlags->PF ? "P": "");
+            fprintf(Dest, RegFlags->ZF ? "Z": "");
+            break;
+        case Op_add:
+        {
+            fprintf(Dest, " ; %s:0x%x->0x%x ip:0x%x->0x%x ", DestinationRegName,
+                                               Registers[DestRegIndex].PreviousRegisterValue, 
+                                               Registers[DestRegIndex].RegisterValue,
+                                               Registers[13].PreviousRegisterValue,
+                                               Registers[13].RegisterValue);
+            fprintf(Dest, RegFlags->AF ? "flags:->A": "");
+        } break;
+        case Op_cmp:
+        {
+            fprintf(Dest, " ; flags:%s->", RegFlags->SF ? "S": "");
+        } break;
+        case Op_jne:
+        {
+            fprintf(Dest, " ; ip:0x%x->0x%x ", Registers[13].PreviousRegisterValue,
+                                               Registers[13].RegisterValue);
+        } break;
+        case Op_loopnz:
+        {
+            fprintf(Dest, "loopnz");
+        } break;
     }
 }
 
@@ -286,20 +292,14 @@ static void PrintFinalRegisters(sim_register *Registers, flags *Flags, u8 Regist
         }
     }
 
-    if(Flags->SF || Flags->PF || Flags->ZF)
+    if(Flags->SF || Flags->PF || Flags->ZF || Flags->AF || Flags->CF)
     {
         fprintf(Dest, "   Flags: ");
     }
-    if(Flags->SF)
-    {
-        fprintf(Dest, "S");
-    }
-    if(Flags->PF)
-    {
-        fprintf(Dest, "P");
-    }
-    if(Flags->ZF)
-    {
-        fprintf(Dest, "Z");
-    }
+
+    fprintf(Dest, Flags->CF ? "C": "");
+    fprintf(Dest, Flags->SF ? "S": "");
+    fprintf(Dest, Flags->PF ? "P": "");
+    fprintf(Dest, Flags->ZF ? "Z": "");
+    fprintf(Dest, Flags->AF ? "A": "");
 }
