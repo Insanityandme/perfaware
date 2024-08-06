@@ -14,5 +14,7 @@ struct flags
     b32 CF;
 };
 
-static void SimulateInstruction(sim_register *Registers, flags *Flags, instruction Instruction,
-                                segmented_access *At);
+static void SimulateInstruction(memory *Memory, sim_register *Registers, flags *Flags, 
+                                instruction Instruction, segmented_access *At);
+
+static u16 WriteMemory(memory *Memory, s32 Displacement, u16 Value);

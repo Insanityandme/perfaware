@@ -17,6 +17,14 @@ static u8 ReadMemory(memory *Memory, u32 AbsoluteAddress)
     return Result;
 }
 
+static u16 WriteMemory(memory *Memory, u32 AbsoluteAddress, u16 Value)
+{
+    assert(AbsoluteAddress < ArrayCount(Memory->Bytes));
+    Memory->Bytes[AbsoluteAddress] = Value;
+    u16 Result = Memory->Bytes[AbsoluteAddress];
+    return Result;
+}
+
 static u32 LoadMemoryFromFile(char *FileName, memory *Memory, u32 AtOffset)
 {
     u32 Result = 0;

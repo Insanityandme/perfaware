@@ -1,4 +1,27 @@
-static void SimulateInstruction(sim_register *Registers, flags *RegFlags, 
+
+static u16 WriteMemory(memory *Memory, s32 Displacement, u16 Value)
+{
+    Memory->Bytes[Displacement] = Value;
+    u16 Result = Memory->Bytes[Displacement];
+    return Result;
+}
+
+static b32 CalculateParity(u16 x)
+{
+    // NOTE: Normally you would use a population count instruction for this operation,
+    // but the only way to do that in vanilla C++ is to use the std:: library which I don't
+    // think is a good idea in general for a variety of reasons. So the parity is computed
+    // manually here using Hacker's Delight Second Edition page 96 (I have kept the variable
+    // names the same as what appears there):
+    
+    u16 y = x ^ (x >> 1);
+    y = y ^ (y >> 2);
+    y = y ^ (y >> 4);
+
+    return ((~y & 0x1) << 2);
+}
+
+static void SimulateInstruction(memory *Memory, sim_register *Registers, flags *RegFlags, 
                                       instruction Instruction, segmented_access *At)
 {
     u32 Flags = Instruction.Flags;
@@ -16,7 +39,11 @@ static void SimulateInstruction(sim_register *Registers, flags *RegFlags,
     }
 
     u8 LatestRegIndex = 0;
+    u8 DestRegIndex = 0;
+    u8 SourceRegIndex = 0;
     u16 Immediate = 0;
+    effective_address_expression Address = {};
+
     for(u32 OperandIndex = 0; OperandIndex < ArrayCount(Instruction.Operands); ++OperandIndex)
     {
         instruction_operand Operand = Instruction.Operands[OperandIndex];
@@ -36,7 +63,7 @@ static void SimulateInstruction(sim_register *Registers, flags *RegFlags,
                                    
                 case Operand_Memory:
                 {
-                    effective_address_expression Address = Operand.Address;
+                    Address = Operand.Address;
                 } break;
 
                 case Operand_Immediate:
@@ -51,9 +78,6 @@ static void SimulateInstruction(sim_register *Registers, flags *RegFlags,
             }
         }
     }
-
-    u8 DestRegIndex = 0;
-    u8 SourceRegIndex = 0;
 
     if(Instruction.Operands)
     {
@@ -82,6 +106,32 @@ static void SimulateInstruction(sim_register *Registers, flags *RegFlags,
                 Registers[DestRegIndex].RegisterValue = Immediate;
             }
 
+            if(Instruction.Operands[0].Type == Operand_Memory)
+            {
+                char const *RegisterName = GetEffectiveAddressExpression(Address);
+                u16 Displacement = 0;
+                u16 RegisterAddress = 0;
+
+                for(int i = 0; i < sizeof(Registers); i++)
+                {
+                    if(Registers[i].RegName == RegisterName)
+                    {
+                        RegisterAddress = Registers[i].RegisterValue;
+                    }
+                }
+                if(Address.Displacement != 0)
+                {
+                    Displacement = Address.Displacement;
+                }
+                u16 Result = WriteMemory(Memory, (RegisterAddress + Address.Displacement), Immediate);
+            }
+            else if(Instruction.Operands[1].Type == Operand_Memory)
+            {
+                u16 Read = ReadMemory(Memory, Address.Displacement);
+                Registers[DestRegIndex].RegisterValue = Read;
+            }
+
+
         } break;
         case Op_add:
         {
@@ -90,6 +140,7 @@ static void SimulateInstruction(sim_register *Registers, flags *RegFlags,
             RegFlags->AF = ((Registers[DestRegIndex].RegisterValue & 0x0F) + (Immediate & 0x0F)) > 0x0F;
 
             Registers[LatestRegIndex].RegisterValue = AddResult;
+            RegFlags->PF = CalculateParity(AddResult);
         } break;
         case Op_sub:
         {
@@ -99,29 +150,23 @@ static void SimulateInstruction(sim_register *Registers, flags *RegFlags,
             if(Registers[SourceRegIndex].RegisterValue == 0)
             {
                 SubResult = Registers[DestRegIndex].RegisterValue - Immediate;    
+                RegFlags->AF = ((Registers[DestRegIndex].RegisterValue & 0x0F) -
+                                (Immediate & 0x0F)) < 0;
             }
             else 
             {
                 SubResult = Registers[DestRegIndex].RegisterValue - Registers[SourceRegIndex].RegisterValue;
+                RegFlags->AF = ((Registers[DestRegIndex].RegisterValue & 0x0F) -
+                                (Registers[SourceRegIndex].RegisterValue & 0x0F)) < 0;
             }
 
-            RegFlags->AF = ((Registers[DestRegIndex].RegisterValue & 0x0F) -
-                            (Registers[LatestRegIndex].RegisterValue & 0x0F)) < 0;
-            RegFlags->CF = Registers[DestRegIndex].RegisterValue < Registers[LatestRegIndex].RegisterValue;
+            RegFlags->CF = Registers[DestRegIndex].RegisterValue < Registers[SourceRegIndex].RegisterValue;
 
             Registers[DestRegIndex].RegisterValue = SubResult;
 
             RegFlags->ZF = (SubResult == 0);
             RegFlags->SF = (SubResult & 0x8000);
-
-            u16 Parity = 0;
-            while(SubResult)
-            {
-                Parity ^= 1;
-                SubResult &= (SubResult - 1);
-            }
-
-            RegFlags->PF = !Parity;
+            RegFlags->PF = CalculateParity(SubResult);
         } break;
         case Op_jne:
         {

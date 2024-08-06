@@ -16,5 +16,7 @@ static u32 GetAbsoluteAddressOf(segmented_access Access, u16 AdditionalOffset = 
 
 static u8 ReadMemory(memory *Memory, u32 AbsoluteAddress);
 
+static u16 WriteMemory(memory *Memory, u16 Address, u16 Value);
+
 static u32 LoadMemoryFromFile(char *FileName, memory *Memory, u32 AtOffset);
 

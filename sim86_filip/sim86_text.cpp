@@ -67,6 +67,23 @@ static b32 IsPrintable(instruction Instruction)
     return Result;
 }
 
+static void PrintRegisterChange(char const *DestRegName, u8 DestRegIndex, 
+                                sim_register *Registers, FILE *Dest)
+{
+    if(Registers[DestRegIndex].RegisterValue != 0)
+    {
+        fprintf(Dest, " ; %s:0x%x->0x%x ip:0x%x->0x%x ", DestRegName,
+                                           Registers[DestRegIndex].PreviousRegisterValue, 
+                                           Registers[DestRegIndex].RegisterValue,
+                                           Registers[13].PreviousRegisterValue,
+                                           Registers[13].RegisterValue);
+    }
+    else
+    {
+        fprintf(Dest, " ; ip:0x%x->0x%x ", Registers[13].PreviousRegisterValue, Registers[13].RegisterValue);
+    }
+}
+
 static void PrintInstruction(instruction Instruction, FILE *Dest)
 {
     u32 Flags = Instruction.Flags;
@@ -235,18 +252,10 @@ static void PrintSimulatedInstruction(sim_register *Registers, flags *RegFlags,
     switch(Instruction.Op)
     {
         case Op_mov:
-            fprintf(Dest, " ; %s:0x%x->0x%x ip:0x%x->0x%x ", DestinationRegName,
-                                               Registers[DestRegIndex].PreviousRegisterValue, 
-                                               Registers[DestRegIndex].RegisterValue,
-                                               Registers[13].PreviousRegisterValue,
-                                               Registers[13].RegisterValue);
+            PrintRegisterChange(DestinationRegName, DestRegIndex, Registers, stdout);
             break;
         case Op_sub:
-            fprintf(Dest, " ; %s:0x%x->0x%x ip:0x%x->0x%x ", DestinationRegName,
-                                               Registers[DestRegIndex].PreviousRegisterValue, 
-                                               Registers[DestRegIndex].RegisterValue,
-                                               Registers[13].PreviousRegisterValue,
-                                               Registers[13].RegisterValue);
+            PrintRegisterChange(DestinationRegName, DestRegIndex, Registers, stdout);
             fprintf(Dest, "flags:");
             fprintf(Dest, RegFlags->AF ? "": "A->");
             fprintf(Dest, RegFlags->CF ? "C": "");
@@ -256,12 +265,10 @@ static void PrintSimulatedInstruction(sim_register *Registers, flags *RegFlags,
             break;
         case Op_add:
         {
-            fprintf(Dest, " ; %s:0x%x->0x%x ip:0x%x->0x%x ", DestinationRegName,
-                                               Registers[DestRegIndex].PreviousRegisterValue, 
-                                               Registers[DestRegIndex].RegisterValue,
-                                               Registers[13].PreviousRegisterValue,
-                                               Registers[13].RegisterValue);
-            fprintf(Dest, RegFlags->AF ? "flags:->A": "");
+            PrintRegisterChange(DestinationRegName, DestRegIndex, Registers, stdout);
+            fprintf(Dest, "flags:");
+            fprintf(Dest, RegFlags->PF ? "->P": "");
+            fprintf(Dest, RegFlags->AF ? "A": "");
         } break;
         case Op_cmp:
         {

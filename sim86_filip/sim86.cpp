@@ -68,7 +68,7 @@ static void Simulate8086(memory *Memory, u32 DisAsmByteCount, segmented_access D
             UpdateContext(&Context, Instruction);
             Registers[13].RegisterValue = At.SegmentOffset;
 
-            SimulateInstruction(Registers, &Flags, Instruction, &At);
+            SimulateInstruction(Memory, Registers, &Flags, Instruction, &At);
 
             if(IsPrintable(Instruction))
             {
