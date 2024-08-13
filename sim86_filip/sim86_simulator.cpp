@@ -168,6 +168,19 @@ static void SimulateInstruction(memory *Memory, sim_register *Registers, flags *
             RegFlags->SF = (SubResult & 0x8000);
             RegFlags->PF = CalculateParity(SubResult);
         } break;
+        case Op_cmp:
+        {
+            if(Registers[DestRegIndex].RegisterValue == Registers[LatestRegIndex].RegisterValue)
+            {
+                RegFlags->ZF = true;
+            }
+
+            u16 CmpResult = Registers[DestRegIndex].RegisterValue - Registers[LatestRegIndex].RegisterValue;
+            RegFlags->PF = CalculateParity(CmpResult);
+            RegFlags->CF = Registers[DestRegIndex].RegisterValue < Registers[SourceRegIndex].RegisterValue;
+            RegFlags->SF = (CmpResult & 0x8000);
+            
+        } break;
         case Op_jne:
         {
             if(RegFlags->ZF == 1)
@@ -175,8 +188,8 @@ static void SimulateInstruction(memory *Memory, sim_register *Registers, flags *
                 break;
             }
 
-            Registers[13].RegisterValue = -Immediate;
-            At->SegmentOffset = -Immediate;
+            Registers[13].RegisterValue = Registers[13].PreviousRegisterValue - (-Immediate);
+            At->SegmentOffset = Registers[13].PreviousRegisterValue - (-Immediate);
         } break;
         case Op_loop:
         {
