@@ -70,7 +70,11 @@ static b32 IsPrintable(instruction Instruction)
 static void PrintRegisterChange(char const *DestRegName, u8 DestRegIndex, 
                                 sim_register *Registers, FILE *Dest)
 {
-    if(Registers[DestRegIndex].RegisterValue != 0 || Registers[DestRegIndex].RegName != 0)
+    if(Registers[DestRegIndex].RegisterValue == Registers[DestRegIndex].PreviousRegisterValue)
+    {
+        fprintf(Dest, " ; ip:0x%x->0x%x ", Registers[13].PreviousRegisterValue, Registers[13].RegisterValue);
+    }
+    else if(Registers[DestRegIndex].RegisterValue != 0 || Registers[DestRegIndex].RegName != 0)
     {
         fprintf(Dest, " ; %s:0x%x->0x%x ip:0x%x->0x%x ", DestRegName,
                                            Registers[DestRegIndex].PreviousRegisterValue, 
@@ -257,7 +261,7 @@ static void PrintSimulatedInstruction(sim_register *Registers, flags *RegFlags,
         case Op_sub:
             PrintRegisterChange(DestinationRegName, DestRegIndex, Registers, stdout);
             fprintf(Dest, "flags:");
-            fprintf(Dest, RegFlags->AF ? "": "A->");
+            fprintf(Dest, RegFlags->AF ? "A->": "");
             fprintf(Dest, RegFlags->CF ? "C": "");
             fprintf(Dest, RegFlags->SF ? "S": "");
             fprintf(Dest, RegFlags->PF ? "P": "");
@@ -268,17 +272,17 @@ static void PrintSimulatedInstruction(sim_register *Registers, flags *RegFlags,
             PrintRegisterChange(DestinationRegName, DestRegIndex, Registers, stdout);
             fprintf(Dest, RegFlags->CF ? "flags:->C": "");
             fprintf(Dest, RegFlags->PF ? "P": "");
-            fprintf(Dest, RegFlags->AF ? "": "A");
+            fprintf(Dest, RegFlags->AF ? "A": "");
             fprintf(Dest, RegFlags->SF ? "S": "");
             fprintf(Dest, RegFlags->ZF ? "Z": "");
         } break;
         case Op_cmp:
         {
             PrintRegisterChange(DestinationRegName, DestRegIndex, Registers, stdout);
-            fprintf(Dest, " ; flags:->");
+            fprintf(Dest, "; flags:->");
             fprintf(Dest, RegFlags->CF ? "C": "");
             fprintf(Dest, RegFlags->PF ? "P": "");
-            fprintf(Dest, RegFlags->AF ? "": "A");
+            fprintf(Dest, RegFlags->AF ? "A": "");
             fprintf(Dest, RegFlags->SF ? "S": "");
             fprintf(Dest, RegFlags->ZF ? "Z": "");
         } break;

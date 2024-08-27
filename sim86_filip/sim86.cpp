@@ -90,7 +90,8 @@ static void Simulate8086(memory *Memory, u32 DisAsmByteCount, segmented_access D
 
 int main(int ArgCount, char **Args)
 {
-    memory *Memory = (memory *)malloc(sizeof(memory));
+    size_t size = sizeof(memory);
+    memory *Memory = (memory *)malloc(size);
     
     if(ArgCount > 1)
     {
@@ -104,6 +105,31 @@ int main(int ArgCount, char **Args)
                 printf("--- %s execution ---\n", FileName);
 
                 Simulate8086(Memory, BytesRead, {});
+            }
+            else if(strcmp(Args[ArgIndex], "-dump") == 0)
+            {
+                printf("Dumping memory into file...");
+                FILE *file = fopen("sim86_memory_0.data", "wb");
+                if(!file)
+                {
+                    perror("Failed to open file");
+                    free(Memory);
+                    return 1;
+                }
+
+                size_t written = fwrite(Memory, 1, size, file);
+
+                if(written != size)
+                {
+                    perror("Failed to write memory to file");
+                    free(Memory);
+                    fclose(file);
+                    return 1;
+                }
+
+                fclose(file);
+                free(Memory);
+                return 0;
             }
             else
             {
