@@ -95,59 +95,77 @@ int main(int ArgCount, char **Args)
     
     if(ArgCount > 1)
     {
+        b32 ExecFlag = false;
+        b32 DumpFlag = false;
+        char *FileName;
+        u32 BytesRead = 0;
+
         for(int ArgIndex = 1; ArgIndex < ArgCount; ++ArgIndex)
         {
             if(strcmp(Args[ArgIndex], "-exec") == 0)
             {
-                char *FileName = Args[++ArgIndex];
-                u32 BytesRead = LoadMemoryFromFile(FileName, Memory, 0);
-                
-                printf("--- %s execution ---\n", FileName);
-
-                Simulate8086(Memory, BytesRead, {});
+                FileName = Args[++ArgIndex];
+                ExecFlag = true;
             }
             else if(strcmp(Args[ArgIndex], "-dump") == 0)
             {
-                printf("Dumping memory into file...");
-                FILE *file = fopen("sim86_memory_0.data", "wb");
-                if(!file)
-                {
-                    perror("Failed to open file");
-                    free(Memory);
-                    return 1;
-                }
-
-                size_t written = fwrite(Memory, 1, size, file);
-
-                if(written != size)
-                {
-                    perror("Failed to write memory to file");
-                    free(Memory);
-                    fclose(file);
-                    return 1;
-                }
-
-                fclose(file);
-                free(Memory);
-                return 0;
+                DumpFlag = true;
             }
-            else
+        }
+
+        if(FileName != 0)
+        {
+            BytesRead = LoadMemoryFromFile(FileName, Memory, 0);
+        }
+
+        if(ExecFlag == true)
+        {
+            printf("--- %s execution ---\n", FileName);
+
+            Simulate8086(Memory, BytesRead, {});
+        }
+
+        if(DumpFlag == true && ExecFlag == true)
+        {
+            FILE *file = fopen("sim86_memory_0.data", "wb");
+            if(!file)
             {
-                char *FileName = Args[ArgIndex];
-                u32 BytesRead = LoadMemoryFromFile(FileName, Memory, 0);
-
-                printf("; %s disassembly:\n", FileName);
-                printf("bits 16\n");
-
-                DisAsm8086(Memory, BytesRead, {});
+                perror("Failed to open file");
+                free(Memory);
+                return 1;
             }
+
+            size_t written = fwrite(Memory, 1, size, file);
+
+            if(written != size)
+            {
+                perror("Failed to write memory to file");
+                free(Memory);
+                fclose(file);
+                return 1;
+            }
+
+            fclose(file);
+            free(Memory);
+
+            return 0;
+        }
+
+        if(ExecFlag == 0 && DumpFlag == 0)
+        {
+            printf("; %s disassembly:\n", FileName);
+            printf("bits 16\n");
+
+            DisAsm8086(Memory, BytesRead, {});
         }
     }
     else
     {
         fprintf(stderr, "USAGE: %s [8086 machine code file] ...\n", Args[0]);
         fprintf(stderr, "USAGE: %s -exec [8086 machine code file] ...\n", Args[0]);
+        fprintf(stderr, "USAGE: %s -dump -exec [8086 machine code file] ...\n", Args[0]);
     }
+    
     
     return 0;
 }

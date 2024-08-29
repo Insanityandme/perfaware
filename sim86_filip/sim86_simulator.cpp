@@ -211,10 +211,9 @@ static void SimulateInstruction(memory *Memory, sim_register *Registers, flags *
         } break;
         case Op_cmp:
         {
-            u16 CmpResult = Registers[DestRegIndex].RegisterValue - Registers[LatestRegIndex].RegisterValue;
+            u16 CmpResult = Registers[DestRegIndex].RegisterValue - Registers[SourceRegIndex].RegisterValue;
 
-            RegFlags->ZF = (Registers[DestRegIndex].RegisterValue == 
-                            Registers[LatestRegIndex].RegisterValue) ? true : false;
+            RegFlags->ZF = (CmpResult == 0) ? true : false;
             RegFlags->AF = ((Registers[DestRegIndex].RegisterValue & 0x0F) -
                             (Registers[SourceRegIndex].RegisterValue & 0x0F)) < 0;
             RegFlags->PF = CalculateParity(CmpResult);
