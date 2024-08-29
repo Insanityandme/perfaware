@@ -118,6 +118,7 @@ static void SimulateInstruction(memory *Memory, sim_register *Registers, flags *
             DestRegIndex = Instruction.Operands[0].Register.Index - 1;
             Registers[DestRegIndex].PreviousRegisterValue = Registers[DestRegIndex].RegisterValue;
         }
+
         if(OpTypeSrc == Operand_Register)
         {
             SourceRegIndex = Instruction.Operands[1].Register.Index - 1;
@@ -211,9 +212,19 @@ static void SimulateInstruction(memory *Memory, sim_register *Registers, flags *
         } break;
         case Op_cmp:
         {
-            u16 CmpResult = Registers[DestRegIndex].RegisterValue - Registers[SourceRegIndex].RegisterValue;
+            u16 CmpResult = 0;
 
-            RegFlags->ZF = (CmpResult == 0) ? true : false;
+            // Means that there is no source register
+            if(Registers[SourceRegIndex].RegisterValue == 0)
+            {
+                CmpResult = Registers[DestRegIndex].RegisterValue - Immediate;    
+            }
+            else
+            {
+                u16 CmpResult = Registers[DestRegIndex].RegisterValue - Registers[SourceRegIndex].RegisterValue;
+            }
+
+            RegFlags->ZF = (CmpResult == 0);
             RegFlags->AF = ((Registers[DestRegIndex].RegisterValue & 0x0F) -
                             (Registers[SourceRegIndex].RegisterValue & 0x0F)) < 0;
             RegFlags->PF = CalculateParity(CmpResult);
@@ -228,8 +239,8 @@ static void SimulateInstruction(memory *Memory, sim_register *Registers, flags *
                 break;
             }
 
-            Registers[13].RegisterValue = Registers[13].PreviousRegisterValue - (-Immediate);
-            At->SegmentOffset = Registers[13].PreviousRegisterValue - (-Immediate);
+            Registers[13].RegisterValue = Registers[13].PreviousRegisterValue + Immediate;
+            At->SegmentOffset = Registers[13].PreviousRegisterValue + Immediate;
         } break;
         case Op_loop:
         {
