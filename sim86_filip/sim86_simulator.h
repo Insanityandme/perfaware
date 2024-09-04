@@ -5,6 +5,12 @@ struct sim_register
     char const *RegName;
 };
 
+struct clocks
+{
+    u16 Clocks;
+    s8 EffectiveAddressTime;
+};
+
 struct flags
 {
     b32 SF;

@@ -72,11 +72,11 @@ static void PrintRegisterChange(char const *DestRegName, u8 DestRegIndex,
 {
     if(Registers[DestRegIndex].RegisterValue == Registers[DestRegIndex].PreviousRegisterValue)
     {
-        fprintf(Dest, " ; ip:0x%x->0x%x ", Registers[13].PreviousRegisterValue, Registers[13].RegisterValue);
+        fprintf(Dest, "ip:0x%x->0x%x ", Registers[13].PreviousRegisterValue, Registers[13].RegisterValue);
     }
     else if(Registers[DestRegIndex].RegisterValue != 0 || Registers[DestRegIndex].RegName != 0)
     {
-        fprintf(Dest, " ; %s:0x%x->0x%x ip:0x%x->0x%x ", DestRegName,
+        fprintf(Dest, "%s:0x%x->0x%x ip:0x%x->0x%x ", DestRegName,
                                            Registers[DestRegIndex].PreviousRegisterValue, 
                                            Registers[DestRegIndex].RegisterValue,
                                            Registers[13].PreviousRegisterValue,
@@ -84,7 +84,26 @@ static void PrintRegisterChange(char const *DestRegName, u8 DestRegIndex,
     }
     else
     {
-        fprintf(Dest, " ; ip:0x%x->0x%x ", Registers[13].PreviousRegisterValue, Registers[13].RegisterValue);
+        fprintf(Dest, "ip:0x%x->0x%x ", Registers[13].PreviousRegisterValue, Registers[13].RegisterValue);
+    }
+}
+
+static void PrintClocks(instruction Instruction, u16 Clocks, u32 *TotalClocks, s8 EffectiveAddressTime)
+{
+    *TotalClocks += (Clocks + EffectiveAddressTime);
+    printf("Clocks: +%u = %u | ", Clocks, *TotalClocks);
+}
+
+static void PrintExplainClocks(instruction Instruction, u16 Clocks, s8 EffectiveAddressTime, u32 *TotalClocks)
+{
+    *TotalClocks += (Clocks + EffectiveAddressTime);
+    if(EffectiveAddressTime != 0)
+    {
+        printf("Clocks: +%u = %u (%u + %uea) | ", (Clocks + EffectiveAddressTime), *TotalClocks, Clocks, EffectiveAddressTime);;
+    }
+    else
+    {
+        printf("Clocks: +%u = %u | ", Clocks, *TotalClocks);
     }
 }
 
@@ -165,94 +184,17 @@ static void PrintInstruction(instruction Instruction, FILE *Dest)
                 } break;
             }
         }
+
     }
 }
 
 static void PrintSimulatedInstruction(sim_register *Registers, flags *RegFlags, 
                                       instruction Instruction, FILE *Dest)
 {
-    u32 Flags = Instruction.Flags;
-    u32 W = Flags & Inst_Wide;
-
-    if(Flags & Inst_Lock)
-    {
-        if(Instruction.Op == Op_xchg)
-        {
-            // NOTE(casey): This is just a stupidity for matching assembler expectations.
-            instruction_operand Temp = Instruction.Operands[0];
-            Instruction.Operands[0] = Instruction.Operands[1];
-            Instruction.Operands[1] = Temp;
-        }
-        fprintf(Dest, "lock ");
-    }
-
-    char const *MnemonicSuffix = "";
-    if(Flags & Inst_Rep)
-    {
-        printf("rep ");
-        MnemonicSuffix = W ? "w" : "b";
-    }
-
-    fprintf(Dest, "%s%s ", GetMnemonic(Instruction.Op), MnemonicSuffix);
-
-    char const *Seperator = "";
-    for(u32 OperandIndex = 0; OperandIndex < ArrayCount(Instruction.Operands); ++OperandIndex)
-    {
-        instruction_operand Operand = Instruction.Operands[OperandIndex];
-        if(Operand.Type != Operand_None)
-        {
-            fprintf(Dest, "%s", Seperator);
-            Seperator = ", ";
-
-            switch(Operand.Type)
-            {
-                case Operand_None: {} break;
-
-                case Operand_Register:
-                {
-                    fprintf(Dest, "%s", GetRegName(Operand.Register));
-                } break;
-                                   
-                case Operand_Memory:
-                {
-                    effective_address_expression Address = Operand.Address;
-
-                    if(Instruction.Operands[0].Type != Operand_Register)
-                    {
-                        fprintf(Dest, "%s ", W ? "word" : "byte");
-                    }
-
-                    if(Flags & Inst_Segment)
-                    {
-                        printf("%s:", GetRegName({Address.Segment, 0, 2}));
-                    }
-
-                    fprintf(Dest, "[%s", GetEffectiveAddressExpression(Address));
-                    if(Address.Displacement != 0)
-                    {
-                        fprintf(Dest, "%+d", Address.Displacement); 
-                    }
-                    fprintf(Dest, "]");
-                } break;
-
-                case Operand_Immediate:
-                {
-                    fprintf(Dest, "%d", Operand.ImmediateS32);
-                } break;
-
-                case Operand_RelativeImmediate:
-                {
-                    fprintf(Dest, "$%+d", Operand.ImmediateS32);
-                } break;
-            }
-        }
-    }
-
     u8 DestRegIndex = Instruction.Operands[0].Register.Index - 1;
 
-    char const *InstructionOp = GetMnemonic(Instruction.Op);
     char const *DestinationRegName = GetRegName(Instruction.Operands[0].Register);
-
+    char const *InstructionOp = GetMnemonic(Instruction.Op);
     switch(Instruction.Op)
     {
         case Op_mov:
@@ -290,10 +232,6 @@ static void PrintSimulatedInstruction(sim_register *Registers, flags *RegFlags,
         {
             fprintf(Dest, " ; ip:0x%x->0x%x ", Registers[13].PreviousRegisterValue,
                                                Registers[13].RegisterValue);
-        } break;
-        case Op_loopnz:
-        {
-            fprintf(Dest, "loopnz");
         } break;
     }
 }

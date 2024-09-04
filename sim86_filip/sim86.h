@@ -37,6 +37,19 @@ enum instruction_flag
     Inst_Wide = (1 << 3),
 };
 
+enum cli_flag
+{
+    Exec = (1 << 0),
+    Dump = (1 << 1),
+    ShowClocks = (1 << 2),
+    ExplainClocks = (1 << 3),
+};
+
+struct cli_flags
+{
+    s8 Flags;
+};
+
 enum register_index
 {
     Register_none,

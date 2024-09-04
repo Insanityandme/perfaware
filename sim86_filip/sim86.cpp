@@ -38,6 +38,7 @@ static void DisAsm8086(memory *Memory, u32 DisAsmByteCount, segmented_access Dis
                 PrintInstruction(Instruction, stdout);
                 printf("\n");
             }
+
         }
         else
         {
@@ -47,8 +48,9 @@ static void DisAsm8086(memory *Memory, u32 DisAsmByteCount, segmented_access Dis
     }
 }
 
-static void Simulate8086(memory *Memory, u32 DisAsmByteCount, segmented_access DisAsmStart)
+static void Simulate8086(cli_flags CliFlags, memory *Memory, u32 DisAsmByteCount, segmented_access DisAsmStart)
 {
+    u32 TotalClocks = 0;
     sim_register Registers[14] = {};
     Registers[13].RegName = "ip";
     Registers[13].RegisterValue = 0;
@@ -69,12 +71,27 @@ static void Simulate8086(memory *Memory, u32 DisAsmByteCount, segmented_access D
             Registers[13].RegisterValue = At.SegmentOffset;
 
             SimulateInstruction(Memory, Registers, &Flags, Instruction, &At);
+            clocks Clocks = CalculateClocks(Instruction);
 
             if(IsPrintable(Instruction))
             {
+                PrintInstruction(Instruction, stdout);
+                printf(" ; ");
+
+                if(CliFlags.Flags & ShowClocks)
+                {
+                    PrintClocks(Instruction, Clocks.Clocks, &TotalClocks, Clocks.EffectiveAddressTime);
+                }
+                else if(CliFlags.Flags & ExplainClocks)
+                {
+                    PrintExplainClocks(Instruction, Clocks.Clocks, Clocks.EffectiveAddressTime, &TotalClocks);
+                }
+
                 PrintSimulatedInstruction(Registers, &Flags, Instruction, stdout);
+
                 printf("\n");
             }
+
 
             Registers[13].PreviousRegisterValue = Registers[13].RegisterValue;
         }
@@ -90,13 +107,12 @@ static void Simulate8086(memory *Memory, u32 DisAsmByteCount, segmented_access D
 
 int main(int ArgCount, char **Args)
 {
+    cli_flags CliFlags = {};
     size_t size = sizeof(memory);
     memory *Memory = (memory *)malloc(size);
     
     if(ArgCount > 1)
     {
-        b32 ExecFlag = false;
-        b32 DumpFlag = false;
         char *FileName;
         u32 BytesRead = 0;
 
@@ -105,11 +121,23 @@ int main(int ArgCount, char **Args)
             if(strcmp(Args[ArgIndex], "-exec") == 0)
             {
                 FileName = Args[++ArgIndex];
-                ExecFlag = true;
+                CliFlags.Flags |= Exec;
             }
             else if(strcmp(Args[ArgIndex], "-dump") == 0)
             {
-                DumpFlag = true;
+                CliFlags.Flags |= Dump;
+            }
+            else if(strcmp(Args[ArgIndex], "-showclocks") == 0)
+            {
+                CliFlags.Flags |= ShowClocks;
+            }
+            else if(strcmp(Args[ArgIndex], "-explainclocks") == 0)
+            {
+                CliFlags.Flags |= ExplainClocks;
+            }
+            else
+            {
+                FileName = Args[ArgIndex];
             }
         }
 
@@ -118,14 +146,26 @@ int main(int ArgCount, char **Args)
             BytesRead = LoadMemoryFromFile(FileName, Memory, 0);
         }
 
-        if(ExecFlag == true)
+        if(CliFlags.Flags & Exec)
         {
             printf("--- %s execution ---\n", FileName);
 
-            Simulate8086(Memory, BytesRead, {});
+            Simulate8086(CliFlags, Memory, BytesRead, {});
         }
 
-        if(DumpFlag == true && ExecFlag == true)
+        if((CliFlags.Flags & ShowClocks) && !(CliFlags.Flags & Exec) && !(CliFlags.Flags & Dump) || 
+            CliFlags.Flags & ExplainClocks)
+        {
+            printf("\nWARNING: Clocks reported by this utility are stricly from the 8086 manual.");
+            printf("\nThey will be inaccurate, both because the manual clocks are estimates, and because");
+            printf("\nsome of the entries in the manual look highly suspicious and are probably typos.");
+            printf("\n\n");
+            printf("--- %s execution ---\n", FileName);
+
+            Simulate8086(CliFlags, Memory, BytesRead, {});
+        }
+
+        if(CliFlags.Flags & Dump && CliFlags.Flags & Exec)
         {
             FILE *file = fopen("sim86_memory_0.data", "wb");
             if(!file)
@@ -151,7 +191,7 @@ int main(int ArgCount, char **Args)
             return 0;
         }
 
-        if(ExecFlag == 0 && DumpFlag == 0)
+        if(!(CliFlags.Flags & Exec) && !(CliFlags.Flags & Dump) && !(CliFlags.Flags & ShowClocks) && !(CliFlags.Flags & ExplainClocks))
         {
             printf("; %s disassembly:\n", FileName);
             printf("bits 16\n");
@@ -164,6 +204,8 @@ int main(int ArgCount, char **Args)
         fprintf(stderr, "USAGE: %s [8086 machine code file] ...\n", Args[0]);
         fprintf(stderr, "USAGE: %s -exec [8086 machine code file] ...\n", Args[0]);
         fprintf(stderr, "USAGE: %s -dump -exec [8086 machine code file] ...\n", Args[0]);
+        fprintf(stderr, "USAGE: %s -showclocks [8086 machine code file] ...\n", Args[0]);
+        fprintf(stderr, "USAGE: %s -explainclocks [8086 machine code file] ...\n", Args[0]);
     }
     
     
