@@ -91,15 +91,22 @@ static void PrintRegisterChange(char const *DestRegName, u8 DestRegIndex,
 static void PrintClocks(instruction Instruction, u16 Clocks, u32 *TotalClocks, s8 EffectiveAddressTime)
 {
     *TotalClocks += (Clocks + EffectiveAddressTime);
-    printf("Clocks: +%u = %u | ", Clocks, *TotalClocks);
+    printf("Clocks: +%u = %u | ", (Clocks + EffectiveAddressTime), *TotalClocks);
 }
 
-static void PrintExplainClocks(instruction Instruction, u16 Clocks, s8 EffectiveAddressTime, u32 *TotalClocks)
+static void PrintExplainClocks(instruction Instruction, u16 Clocks, s8 EffectiveAddressTime, 
+                               s8 Transfers, u32 *TotalClocks)
 {
     *TotalClocks += (Clocks + EffectiveAddressTime);
-    if(EffectiveAddressTime != 0)
+    if(EffectiveAddressTime != 0 && Transfers != 0)
     {
-        printf("Clocks: +%u = %u (%u + %uea) | ", (Clocks + EffectiveAddressTime), *TotalClocks, Clocks, EffectiveAddressTime);;
+        printf("Clocks: +%u = %u (%u + %uea + %up) | ", (Clocks + EffectiveAddressTime), *TotalClocks, 
+                                                         Clocks, EffectiveAddressTime, Transfers);
+    }
+    else if(EffectiveAddressTime != 0)
+    {
+        printf("Clocks: +%u = %u (%u + %uea) | ", (Clocks + EffectiveAddressTime), *TotalClocks, 
+                                                         Clocks, EffectiveAddressTime);
     }
     else
     {

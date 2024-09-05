@@ -56,6 +56,8 @@ static clocks CalculateClocks(instruction Instruction)
     u32 Flags = Instruction.Flags;
     u16 Clocks = 0;
     s8 EffectiveAddressTime = 0;
+    u16 Displacement = 0;
+    s8 Transfers = 0;
 
     for(u32 OperandIndex = 0; OperandIndex < ArrayCount(Instruction.Operands); ++OperandIndex)
     {
@@ -72,6 +74,7 @@ static clocks CalculateClocks(instruction Instruction)
 
                     if(Address.Displacement != 0)
                     {
+                        Displacement = Address.Displacement;
                         // Displacement Only
                         if(*AddressExpression == '\0')
                         {
@@ -86,11 +89,11 @@ static clocks CalculateClocks(instruction Instruction)
                         // Displacement + Base + Index
                         else if(strcmp(AddressExpression, "bp+di") == 0 || strcmp(AddressExpression, "bx+si") == 0)
                         {
-                            EffectiveAddressTime = 11;
+                            EffectiveAddressTime = 11 ;
                         }
                         else if(strcmp(AddressExpression, "bp+si") == 0 || strcmp(AddressExpression, "bx+di") == 0)
                         {
-                           EffectiveAddressTime = 12;
+                            EffectiveAddressTime = 12;
                         }
                     }
                     else 
@@ -160,11 +163,27 @@ static clocks CalculateClocks(instruction Instruction)
             }
             else if(OpTypeDest == Operand_Memory && OpTypeSrc == Operand_Register)
             {
-                Clocks = 16;
+                if(Displacement % 2 != 0)
+                {
+                    Clocks = 16 + 8;
+                    Transfers = 8;
+                }
+                else 
+                {
+                    Clocks = 16;
+                }
             }
             else if(OpTypeDest == Operand_Register && OpTypeSrc == Operand_Memory)
             {
-                Clocks = 9;
+                if(Displacement % 2 != 0)
+                {
+                    Clocks = 9 + 4;
+                    Transfers = 4;
+                }
+                else
+                {
+                    Clocks = 9;
+                }
             }
         } break;
     }
@@ -172,6 +191,7 @@ static clocks CalculateClocks(instruction Instruction)
     clocks CurrentClocks = {};
     CurrentClocks.Clocks = Clocks;
     CurrentClocks.EffectiveAddressTime = EffectiveAddressTime;
+    CurrentClocks.Transfers = Transfers;
 
     return CurrentClocks;
 }

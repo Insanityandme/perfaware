@@ -84,7 +84,7 @@ static void Simulate8086(cli_flags CliFlags, memory *Memory, u32 DisAsmByteCount
                 }
                 else if(CliFlags.Flags & ExplainClocks)
                 {
-                    PrintExplainClocks(Instruction, Clocks.Clocks, Clocks.EffectiveAddressTime, &TotalClocks);
+                    PrintExplainClocks(Instruction, Clocks.Clocks, Clocks.EffectiveAddressTime, Clocks.Transfers, &TotalClocks);
                 }
 
                 PrintSimulatedInstruction(Registers, &Flags, Instruction, stdout);
