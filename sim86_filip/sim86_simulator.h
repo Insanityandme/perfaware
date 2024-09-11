@@ -5,13 +5,6 @@ struct sim_register
     char const *RegName;
 };
 
-struct clocks
-{
-    u16 Clocks;
-    s8 EffectiveAddressTime;
-    s8 Transfers;
-};
-
 struct flags
 {
     b32 SF;
@@ -22,6 +15,6 @@ struct flags
 };
 
 static void SimulateInstruction(memory *Memory, sim_register *Registers, flags *Flags, 
-                                instruction Instruction, segmented_access *At);
+                                cli_flags *CliFlags, instruction Instruction, segmented_access *At);
 
 static u16 WriteMemory(memory *Memory, s32 Displacement, u16 Value);

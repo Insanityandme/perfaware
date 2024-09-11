@@ -43,11 +43,12 @@ enum cli_flag
     Dump = (1 << 1),
     ShowClocks = (1 << 2),
     ExplainClocks = (1 << 3),
+    StopOnRet = (1 << 4),
 };
 
 struct cli_flags
 {
-    s8 Flags;
+    s16 Flags;
 };
 
 enum register_index

@@ -51,153 +51,8 @@ static b32 CalculateParity(u16 x)
     return ((~y & 0x1) << 2);
 }
 
-static clocks CalculateClocks(instruction Instruction)
-{
-    u32 Flags = Instruction.Flags;
-    u16 Clocks = 0;
-    s8 EffectiveAddressTime = 0;
-    u16 Displacement = 0;
-    s8 Transfers = 0;
-
-    for(u32 OperandIndex = 0; OperandIndex < ArrayCount(Instruction.Operands); ++OperandIndex)
-    {
-        instruction_operand Operand = Instruction.Operands[OperandIndex];
-        if(Operand.Type != Operand_None)
-        {
-            switch(Operand.Type)
-            {
-                case Operand_Memory:
-                {
-                    effective_address_expression Address = Operand.Address;
-
-                    char const *AddressExpression = GetEffectiveAddressExpression(Address);
-
-                    if(Address.Displacement != 0)
-                    {
-                        Displacement = Address.Displacement;
-                        // Displacement Only
-                        if(*AddressExpression == '\0')
-                        {
-                            EffectiveAddressTime = 6;
-                        }
-                        // Displacement + Base or Index
-                        if(strcmp(AddressExpression, "bx") == 0 || strcmp(AddressExpression, "bp") == 0 || 
-                           strcmp(AddressExpression, "si") == 0 || strcmp(AddressExpression, "di") == 0)
-                        {
-                            EffectiveAddressTime = 9;
-                        }
-                        // Displacement + Base + Index
-                        else if(strcmp(AddressExpression, "bp+di") == 0 || strcmp(AddressExpression, "bx+si") == 0)
-                        {
-                            EffectiveAddressTime = 11 ;
-                        }
-                        else if(strcmp(AddressExpression, "bp+si") == 0 || strcmp(AddressExpression, "bx+di") == 0)
-                        {
-                            EffectiveAddressTime = 12;
-                        }
-                    }
-                    else 
-                    {
-                        // Base Or Index Only
-                        if(strcmp(AddressExpression, "bx") == 0 || strcmp(AddressExpression, "bp") == 0 || 
-                           strcmp(AddressExpression, "si") == 0 || strcmp(AddressExpression, "di") == 0)
-                        {
-                            EffectiveAddressTime = 5;
-                        }
-                        // Base + Index
-                        else if(strcmp(AddressExpression, "bp+di") == 0 || strcmp(AddressExpression, "bx+si") == 0)
-                        {
-                            EffectiveAddressTime = 7;
-                        }
-                        else if(strcmp(AddressExpression, "bp+si") == 0 || strcmp(AddressExpression, "bx+di") == 0)
-                        {
-                            EffectiveAddressTime = 8;
-                        }
-                    }
-                } break;
-            }
-        }
-    }
-
-    operand_type OpTypeDest = Instruction.Operands[0].Type;
-    operand_type OpTypeSrc = Instruction.Operands[1].Type;
-
-    switch(Instruction.Op)
-    {
-        case Op_mov:
-        {
-            if(OpTypeDest == Operand_Register && OpTypeSrc == Operand_Register)
-            {
-                Clocks = 2;
-            }
-            else if(OpTypeDest == Operand_Memory && OpTypeSrc == Operand_Immediate)
-            {
-                Clocks = 10;
-            }
-            else if(OpTypeDest == Operand_Register && OpTypeSrc == Operand_Immediate)
-            {
-                Clocks = 4;
-            }
-            else if(OpTypeDest == Operand_Memory && OpTypeSrc == Operand_Register)
-            {
-                Clocks = 9;
-            }
-            else if(OpTypeDest == Operand_Register && OpTypeSrc == Operand_Memory)
-            {
-                Clocks = 8;
-            }
-        } break;
-        case Op_add:
-        {
-            if(OpTypeDest == Operand_Register && OpTypeSrc == Operand_Register)
-            {
-                Clocks = 3;
-            }
-            else if(OpTypeDest == Operand_Memory && OpTypeSrc == Operand_Immediate)
-            {
-                Clocks = 17;
-            }
-            else if(OpTypeDest == Operand_Register && OpTypeSrc == Operand_Immediate)
-            {
-                Clocks = 4;
-            }
-            else if(OpTypeDest == Operand_Memory && OpTypeSrc == Operand_Register)
-            {
-                if(Displacement % 2 != 0)
-                {
-                    Clocks = 16 + 8;
-                    Transfers = 8;
-                }
-                else 
-                {
-                    Clocks = 16;
-                }
-            }
-            else if(OpTypeDest == Operand_Register && OpTypeSrc == Operand_Memory)
-            {
-                if(Displacement % 2 != 0)
-                {
-                    Clocks = 9 + 4;
-                    Transfers = 4;
-                }
-                else
-                {
-                    Clocks = 9;
-                }
-            }
-        } break;
-    }
-
-    clocks CurrentClocks = {};
-    CurrentClocks.Clocks = Clocks;
-    CurrentClocks.EffectiveAddressTime = EffectiveAddressTime;
-    CurrentClocks.Transfers = Transfers;
-
-    return CurrentClocks;
-}
-
 static void SimulateInstruction(memory *Memory, sim_register *Registers, flags *RegFlags, 
-                                      instruction Instruction, segmented_access *At)
+                                cli_flags *CliFlags, instruction Instruction, segmented_access *At)
 {
     u32 Flags = Instruction.Flags;
     u32 W = Flags & Inst_Wide;
@@ -233,7 +88,17 @@ static void SimulateInstruction(memory *Memory, sim_register *Registers, flags *
                 case Operand_Register:
                 {
                     LatestRegIndex = Operand.Register.Index - 1;
-                    Registers[LatestRegIndex].RegName = GetRegName(Operand.Register);
+
+                    char const *RegName = GetRegName(Operand.Register);
+                    if(RegName == "al" || RegName == "ah")
+                    {
+                        Registers[LatestRegIndex].RegName = "ax";
+                    }
+                    else
+                    {
+                        Registers[LatestRegIndex].RegName = GetRegName(Operand.Register);
+                    }
+
                 } break;
                                    
                 case Operand_Memory:
@@ -256,6 +121,7 @@ static void SimulateInstruction(memory *Memory, sim_register *Registers, flags *
 
     operand_type OpTypeDest = Instruction.Operands[0].Type;
     operand_type OpTypeSrc = Instruction.Operands[1].Type;
+
     if(Instruction.Operands)
     {
         if(OpTypeDest == Operand_Register)
@@ -267,6 +133,7 @@ static void SimulateInstruction(memory *Memory, sim_register *Registers, flags *
         if(OpTypeSrc == Operand_Register)
         {
             SourceRegIndex = Instruction.Operands[1].Register.Index - 1;
+            Registers[SourceRegIndex].PreviousRegisterValue = Registers[SourceRegIndex].RegisterValue;
         }
     }
 
@@ -304,8 +171,6 @@ static void SimulateInstruction(memory *Memory, sim_register *Registers, flags *
                 u8 Read = ReadMemory(Memory, (RegisterAddress1 + RegisterAddress2 + (u32)Address.Displacement));
                 Registers[DestRegIndex].RegisterValue = Read;
             }
-
-
         } break;
         case Op_add:
         {
@@ -317,6 +182,16 @@ static void SimulateInstruction(memory *Memory, sim_register *Registers, flags *
 
                 RegFlags->AF = ((Registers[DestRegIndex].RegisterValue & 0x0F) + 
                                 (Registers[SourceRegIndex].RegisterValue & 0x0F)) > 0x0F;
+            }
+            else if(OpTypeDest == Operand_Register && OpTypeSrc == Operand_Memory)
+            {
+                ExtractRegistersAddress(Address, Registers, &RegisterAddress1, &RegisterAddress2);
+
+                u8 Read = ReadMemory(Memory, (RegisterAddress1 + RegisterAddress2 + (u32)Address.Displacement));
+                AddResult = Registers[DestRegIndex].RegisterValue + Read;
+
+                RegFlags->AF = ((Registers[DestRegIndex].RegisterValue & 0x0F) + 
+                                (Read)) > 0x0F;
             }
             else
             {
@@ -366,7 +241,7 @@ static void SimulateInstruction(memory *Memory, sim_register *Registers, flags *
             }
             else
             {
-                u16 CmpResult = Registers[DestRegIndex].RegisterValue - Registers[SourceRegIndex].RegisterValue;
+                CmpResult = Registers[DestRegIndex].RegisterValue - Registers[SourceRegIndex].RegisterValue;
             }
 
             RegFlags->ZF = (CmpResult == 0);
@@ -379,13 +254,67 @@ static void SimulateInstruction(memory *Memory, sim_register *Registers, flags *
         } break;
         case Op_jne:
         {
-            if(RegFlags->ZF == 1)
+            if(RegFlags->ZF == 0)
             {
-                break;
+                Registers[13].RegisterValue = Registers[13].PreviousRegisterValue + Immediate;
+                At->SegmentOffset = Registers[13].PreviousRegisterValue + Immediate;
+            }
+            else
+            {
+                RegFlags->ZF = 1;
             }
 
-            Registers[13].RegisterValue = Registers[13].PreviousRegisterValue + Immediate;
-            At->SegmentOffset = Registers[13].PreviousRegisterValue + Immediate;
+        } break;
+        case Op_je:
+        {
+           if(RegFlags->ZF == 1)
+           {
+                Registers[13].RegisterValue = Registers[13].PreviousRegisterValue + Immediate;
+                At->SegmentOffset = Registers[13].PreviousRegisterValue + Immediate;
+           }
+           else
+           {
+               RegFlags->ZF = 0;
+           }
+        } break;
+        case Op_test:
+        {
+            u16 Result = Registers[DestRegIndex].RegisterValue & Registers[SourceRegIndex].RegisterValue;
+
+            RegFlags->ZF = (Result == 0);
+            RegFlags->SF = (Result & 0x8000);
+            RegFlags->PF = CalculateParity(Result);
+        } break;
+        case Op_xor:
+        {
+            u16 XorResult = 0;
+
+            // Means that there is no source register
+            if(Registers[SourceRegIndex].RegisterValue == 0)
+            {
+                XorResult = Registers[DestRegIndex].RegisterValue ^ Immediate;    
+            }
+            else
+            {
+                XorResult = Registers[DestRegIndex].RegisterValue ^ Registers[SourceRegIndex].RegisterValue;
+            }
+
+            RegFlags->ZF = (XorResult == 0);
+            RegFlags->PF = CalculateParity(XorResult);
+        } break;
+        case Op_ret:
+        {
+            CliFlags->Flags |= StopOnRet;
+        } break;
+        case Op_inc:
+        {
+            u16 Result = Registers[SourceRegIndex].RegisterValue + 1;
+
+            Registers[SourceRegIndex].RegisterValue = Result;
+
+            RegFlags->ZF = (Result == 0);
+            RegFlags->SF = (Result < 0);
+            RegFlags->PF = CalculateParity(Result);
         } break;
         case Op_loop:
         {

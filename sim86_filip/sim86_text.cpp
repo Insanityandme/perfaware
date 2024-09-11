@@ -103,7 +103,7 @@ static void PrintExplainClocks(instruction Instruction, u16 Clocks, s8 Effective
         printf("Clocks: +%u = %u (%u + %uea + %up) | ", (Clocks + EffectiveAddressTime), *TotalClocks, 
                                                          Clocks, EffectiveAddressTime, Transfers);
     }
-    else if(EffectiveAddressTime != 0)
+    else if(EffectiveAddressTime != 0) 
     {
         printf("Clocks: +%u = %u (%u + %uea) | ", (Clocks + EffectiveAddressTime), *TotalClocks, 
                                                          Clocks, EffectiveAddressTime);
@@ -202,6 +202,7 @@ static void PrintSimulatedInstruction(sim_register *Registers, flags *RegFlags,
 
     char const *DestinationRegName = GetRegName(Instruction.Operands[0].Register);
     char const *InstructionOp = GetMnemonic(Instruction.Op);
+
     switch(Instruction.Op)
     {
         case Op_mov:
@@ -218,6 +219,11 @@ static void PrintSimulatedInstruction(sim_register *Registers, flags *RegFlags,
             break;
         case Op_add:
         {
+            if(DestinationRegName == "al" || DestinationRegName == "ah")
+            {
+                DestinationRegName = "ax";
+            }
+
             PrintRegisterChange(DestinationRegName, DestRegIndex, Registers, stdout);
             fprintf(Dest, RegFlags->CF ? "flags:->C": "");
             fprintf(Dest, RegFlags->PF ? "P": "");
@@ -237,9 +243,43 @@ static void PrintSimulatedInstruction(sim_register *Registers, flags *RegFlags,
         } break;
         case Op_jne:
         {
-            fprintf(Dest, " ; ip:0x%x->0x%x ", Registers[13].PreviousRegisterValue,
+            fprintf(Dest, "ip:0x%x->0x%x ", Registers[13].PreviousRegisterValue,
                                                Registers[13].RegisterValue);
         } break;
+        case Op_je:
+        {
+            fprintf(Dest, "ip:0x%x->0x%x ", Registers[13].PreviousRegisterValue,
+                                               Registers[13].RegisterValue);
+        } break; 
+        case Op_test:
+        {
+            PrintRegisterChange(DestinationRegName, DestRegIndex, Registers, stdout);
+        } break;
+        case Op_xor:
+        {
+            PrintRegisterChange(DestinationRegName, DestRegIndex, Registers, stdout);
+            fprintf(Dest, "; flags:->");
+            fprintf(Dest, RegFlags->CF ? "C": "");
+            fprintf(Dest, RegFlags->PF ? "P": "");
+            fprintf(Dest, RegFlags->AF ? "A": "");
+            fprintf(Dest, RegFlags->SF ? "S": "");
+            fprintf(Dest, RegFlags->ZF ? "Z": "");
+        } break;
+        case Op_inc:
+        {
+            // TODO(filip): I have no idea why the registers is in the second operand.
+            DestinationRegName = GetRegName(Instruction.Operands[1].Register);
+            DestRegIndex = Instruction.Operands[1].Register.Index - 1;
+
+            PrintRegisterChange(DestinationRegName, DestRegIndex, Registers, stdout);
+            fprintf(Dest, "; flags:->");
+            fprintf(Dest, RegFlags->CF ? "C": "");
+            fprintf(Dest, RegFlags->PF ? "P": "");
+            fprintf(Dest, RegFlags->AF ? "A": "");
+            fprintf(Dest, RegFlags->SF ? "S": "");
+            fprintf(Dest, RegFlags->ZF ? "Z": "");
+        } break;
+
     }
 }
 
@@ -266,4 +306,5 @@ static void PrintFinalRegisters(sim_register *Registers, flags *Flags, u8 Regist
     fprintf(Dest, Flags->PF ? "P": "");
     fprintf(Dest, Flags->ZF ? "Z": "");
     fprintf(Dest, Flags->AF ? "A": "");
+    fprintf(Dest, "\n");
 }

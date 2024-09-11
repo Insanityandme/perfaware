@@ -4,9 +4,11 @@
 #include "sim86_simulator.h"
 #include "sim86_text.h"
 #include "sim86_decode.h"
+#include "sim86_cycles.h"
 
 #include "sim86_memory.cpp"
 #include "sim86_text.cpp"
+#include "sim86_cycles.cpp"
 #include "sim86_decode.cpp"
 #include "sim86_simulator.cpp"
 
@@ -51,9 +53,11 @@ static void DisAsm8086(memory *Memory, u32 DisAsmByteCount, segmented_access Dis
 static void Simulate8086(cli_flags CliFlags, memory *Memory, u32 DisAsmByteCount, segmented_access DisAsmStart)
 {
     u32 TotalClocks = 0;
+
     sim_register Registers[14] = {};
     Registers[13].RegName = "ip";
     Registers[13].RegisterValue = 0;
+
     flags Flags = {};
 
     segmented_access At = DisAsmStart;
@@ -70,7 +74,14 @@ static void Simulate8086(cli_flags CliFlags, memory *Memory, u32 DisAsmByteCount
             UpdateContext(&Context, Instruction);
             Registers[13].RegisterValue = At.SegmentOffset;
 
-            SimulateInstruction(Memory, Registers, &Flags, Instruction, &At);
+            SimulateInstruction(Memory, Registers, &Flags, &CliFlags, Instruction, &At);
+
+            if(CliFlags.Flags & StopOnRet)
+            {
+                printf("STOPONRET: Return encountered at address %d.\n", Registers[13].RegisterValue);
+                break;
+            }
+
             clocks Clocks = CalculateClocks(Instruction);
 
             if(IsPrintable(Instruction))
@@ -88,10 +99,8 @@ static void Simulate8086(cli_flags CliFlags, memory *Memory, u32 DisAsmByteCount
                 }
 
                 PrintSimulatedInstruction(Registers, &Flags, Instruction, stdout);
-
-                printf("\n");
             }
-
+            printf("\n");
 
             Registers[13].PreviousRegisterValue = Registers[13].RegisterValue;
         }
@@ -122,6 +131,11 @@ int main(int ArgCount, char **Args)
             {
                 FileName = Args[++ArgIndex];
                 CliFlags.Flags |= Exec;
+            }
+            else if(strcmp(Args[ArgIndex], "-stoponret") == 0)
+            {
+                // Clearing the flag
+                CliFlags.Flags &= ~StopOnRet;
             }
             else if(strcmp(Args[ArgIndex], "-dump") == 0)
             {
