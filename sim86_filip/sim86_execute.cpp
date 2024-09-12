@@ -52,7 +52,7 @@ static b32 CalculateParity(u16 x)
 }
 
 static void SimulateInstruction(memory *Memory, sim_register *Registers, flags *RegFlags, 
-                                cli_flags *CliFlags, instruction Instruction, segmented_access *At)
+                                instruction Instruction, segmented_access *At)
 {
     u32 Flags = Instruction.Flags;
     u32 W = Flags & Inst_Wide;
@@ -304,7 +304,6 @@ static void SimulateInstruction(memory *Memory, sim_register *Registers, flags *
         } break;
         case Op_ret:
         {
-            CliFlags->Flags |= StopOnRet;
         } break;
         case Op_inc:
         {

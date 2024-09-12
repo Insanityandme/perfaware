@@ -15,6 +15,6 @@ struct flags
 };
 
 static void SimulateInstruction(memory *Memory, sim_register *Registers, flags *Flags, 
-                                cli_flags *CliFlags, instruction Instruction, segmented_access *At);
+                                instruction Instruction, segmented_access *At);
 
 static u16 WriteMemory(memory *Memory, s32 Displacement, u16 Value);
