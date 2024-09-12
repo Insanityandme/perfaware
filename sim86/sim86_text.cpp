@@ -10,73 +10,34 @@
    
    ======================================================================== */
 
-char const *OpcodeMnemonics[] =
+static void PrintEffectiveAddressExpression(effective_address_expression Address, FILE *Dest)
 {
-    "",
-
-#define INST(Mnemonic, ...) #Mnemonic,
-#define INSTALT(...)
-#include "sim86_instruction_table.inl"
-};
-
-static char const *GetMnemonic(operation_type Op)
-{
-    char const *Result = OpcodeMnemonics[Op];
-    return Result;
-}
-
-static char const *GetRegName(register_access Reg)
-{
-    char const *Names[][3] =
-    {
-        {"", "", ""},
-        {"al", "ah", "ax"},
-        {"bl", "bh", "bx"},
-        {"cl", "ch", "cx"},
-        {"dl", "dh", "dx"},
-        {"sp", "sp", "sp"},
-        {"bp", "bp", "bp"},
-        {"si", "si", "si"},
-        {"di", "di", "di"},
-        {"es", "es", "es"},
-        {"cs", "cs", "cs"},
-        {"ss", "ss", "ss"},
-        {"ds", "ds", "ds"},
-        {"ip", "ip", "ip"},
-        {"flags", "flags", "flags"}
-    };
-    static_assert(ArrayCount(Names) == Register_count, "Text table mismatch for register_index");
+    b32 HadTerms = false;
     
-    char const *Result = Names[Reg.Index][(Reg.Count == 2) ? 2 : Reg.Offset&1];
-    return Result;
-}
-
-static char const *GetEffectiveAddressExpression(effective_address_expression Address)
-{
-    char const *RMBase[] =
+    char const *Separator = "";
+    for(u32 Index = 0; Index < ArrayCount(Address.Terms); ++Index)
     {
-        "",
-        "bx+si",
-        "bx+di",
-        "bp+si",
-        "bp+di",
-        "si",
-        "di",
-        "bp",
-        "bx",
-    };
-    static_assert(ArrayCount(RMBase) == EffectiveAddress_count, "Text table mismatch for effective_base_address");
-    char const *Result = RMBase[Address.Base];
-    return Result;
-}
-
-static b32 IsPrintable(instruction Instruction)
-{
-    b32 Result = !((Instruction.Op == Op_lock) ||
-                   (Instruction.Op == Op_rep) ||
-                   (Instruction.Op == Op_segment));
+        effective_address_term Term = Address.Terms[Index];
+        register_access Reg = Term.Register;
+        
+        if(Reg.Index)
+        {
+            fprintf(Dest, "%s", Separator);
+            if(Term.Scale != 1)
+            {
+                fprintf(Dest, "%d*", Term.Scale);
+            }
+            fprintf(Dest, "%s", GetRegName(Reg));
+            Separator = "+";
+            
+            HadTerms = true;
+        }
+    }
     
-    return Result;
+    if(!HadTerms || (Address.Displacement != 0))
+    {
+        fprintf(Dest, "%+d", Address.Displacement);
+    }
 }
 
 static void PrintInstruction(instruction Instruction, FILE *Dest)
@@ -99,7 +60,8 @@ static void PrintInstruction(instruction Instruction, FILE *Dest)
     char const *MnemonicSuffix = "";
     if(Flags & Inst_Rep)
     {
-        printf("rep ");
+        u32 Z = Flags & Inst_RepNE;
+        fprintf(Dest, "%s ", Z ? "rep" : "repne");
         MnemonicSuffix = W ? "w" : "b";
     }
     
@@ -126,35 +88,149 @@ static void PrintInstruction(instruction Instruction, FILE *Dest)
                 case Operand_Memory:
                 {
                     effective_address_expression Address = Operand.Address;
-
-                    if(Instruction.Operands[0].Type != Operand_Register)
-                    {
-                        fprintf(Dest, "%s ", W ? "word" : "byte");
-                    }
                     
-                    if(Flags & Inst_Segment)
+                    if(Address.Flags & Address_ExplicitSegment)
                     {
-                        printf("%s:", GetRegName({Address.Segment, 0, 2}));
+                        fprintf(Dest, "%u:%u", Address.ExplicitSegment, Address.Displacement);
                     }
-                    
-                    fprintf(Dest, "[%s", GetEffectiveAddressExpression(Address));
-                    if(Address.Displacement != 0)
+                    else
                     {
-                        fprintf(Dest, "%+d", Address.Displacement);
+                        if(Flags & Inst_Far)
+                        {
+                            fprintf(Dest, "far ");
+                        }
+                        
+                        if(Instruction.Operands[0].Type != Operand_Register)
+                        {
+                            fprintf(Dest, "%s ", W ? "word" : "byte");
+                        }
+                        
+                        if(Flags & Inst_Segment)
+                        {
+                            fprintf(Dest, "%s:", GetRegName({Instruction.SegmentOverride, 0, 2}));
+                        }
+                        
+                        fprintf(Dest, "[");
+                        PrintEffectiveAddressExpression(Address, Dest);
+                        fprintf(Dest, "]");
                     }
-                    fprintf(Dest, "]");
                 } break;
                 
                 case Operand_Immediate:
                 {
-                    fprintf(Dest, "%d", Operand.ImmediateS32);
-                } break;
-                
-                case Operand_RelativeImmediate:
-                {
-                    fprintf(Dest, "$%+d", Operand.ImmediateS32);
+                    immediate Immediate = Operand.Immediate;
+                    if(Immediate.Flags & Immediate_RelativeJumpDisplacement)
+                    {
+                        fprintf(Dest, "$%+d", Immediate.Value + Instruction.Size);
+                    }
+                    else
+                    {
+                        fprintf(Dest, "%d", Immediate.Value);
+                    }
                 } break;
             }
         }
+    }
+}
+
+static void PrintFlags(u32 Value, FILE *Dest)
+{
+    if(Value & Flag_CF) {fprintf(Dest, "C");}
+    if(Value & Flag_PF) {fprintf(Dest, "P");}
+    if(Value & Flag_AF) {fprintf(Dest, "A");}
+    if(Value & Flag_ZF) {fprintf(Dest, "Z");}
+    if(Value & Flag_SF) {fprintf(Dest, "S");}
+    if(Value & Flag_TF) {fprintf(Dest, "T");}
+    if(Value & Flag_IF) {fprintf(Dest, "I");}
+    if(Value & Flag_DF) {fprintf(Dest, "D");}
+    if(Value & Flag_OF) {fprintf(Dest, "O");}
+}
+
+static void PrintRegisters(register_state_8086 *Registers, FILE *Dest)
+{
+    for(u32 RegIndex = 0; RegIndex < ArrayCount(Registers->u16); ++RegIndex)
+    {
+        u16 Value = Registers->u16[RegIndex];
+        
+        register_access Access = {};
+        Access.Index = RegIndex;
+        Access.Count = 2;
+        char const *Name = GetRegName(Access);
+        if(Value && *Name)
+        {
+            fprintf(Dest, "%8s: ", Name);
+            if(RegIndex == FLAGS_REGISTER_8086)
+            {
+                PrintFlags(Value, Dest);
+            }
+            else
+            {
+                fprintf(Dest, "0x%04x (%u)", Value, Value);
+            }
+            fprintf(Dest, "\n");
+        }
+    }
+}
+
+static void PrintRegisterDifference(register_state_8086 *Old, register_state_8086 *New, FILE *Dest)
+{
+    for(u32 RegIndex = 0; RegIndex < ArrayCount(Old->u16); ++RegIndex)
+    {
+        u16 OldVal = Old->u16[RegIndex];
+        u16 NewVal = New->u16[RegIndex];
+        
+        register_access Access = {};
+        Access.Index = RegIndex;
+        Access.Count = 2;
+        char const *Name = GetRegName(Access);
+        
+        if(OldVal != NewVal)
+        {
+            fprintf(Dest, "%s:", Name);
+            if(RegIndex == FLAGS_REGISTER_8086)
+            {
+                PrintFlags(OldVal, Dest);
+                fprintf(Dest, "->");
+                PrintFlags(NewVal, Dest);
+            }
+            else
+            {
+                fprintf(Dest, "0x%x->0x%x", OldVal, NewVal);
+            }
+            fprintf(Dest, " ");
+        }
+    }
+}
+
+static void PrintClockInterval(instruction_clock_interval Clocks, FILE *Dest)
+{
+    if(Clocks.Min != Clocks.Max)
+    {
+        fprintf(Dest, "[%u,%u]", Clocks.Min, Clocks.Max);
+    }
+    else
+    {
+        fprintf(Dest, "%u", Clocks.Min);
+    }
+}
+
+static void ExplainTiming(instruction_timing Timing, instruction_clock_interval Clocks, FILE *Dest)
+{
+    if(Timing.Base.Min != Clocks.Min)
+    {
+        fprintf(Dest, " (");
+        PrintClockInterval(Timing.Base, Dest);
+        if(Timing.EAClocks)
+        {
+            fprintf(Dest, " + %uea", Timing.EAClocks);
+        }
+        
+        u32 Penalty = Clocks.Min - (Timing.Base.Min + Timing.EAClocks);
+        if(Penalty)
+        {
+            fprintf(Dest, " + %up", Penalty);
+        }
+        
+        fprintf(Dest, ")");
     }
 }
