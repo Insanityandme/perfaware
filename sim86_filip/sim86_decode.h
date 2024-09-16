@@ -1,48 +1,23 @@
-enum instruction_bits_usage : u8
+enum register_mapping_8086
 {
-    Bits_Literal, 
-    Bits_MOD,
-    Bits_REG,
-    Bits_RM,
-    Bits_SR,
-    Bits_Disp,
-    Bits_Data,
-
-    Bits_HasDisp,
-    Bits_DispAlwaysW,
-    Bits_HasData,
-    Bits_WMakesDataW,
-    Bits_RMRegAlwaysW,
-    Bits_RelJMPDisp,
-    Bits_D,
-    Bits_S,
-    Bits_W,
-    Bits_V,
-    Bits_Z,
-
-    Bits_Count,
+    Register_none,
+    
+    Register_a,
+    Register_b,
+    Register_c,
+    Register_d,
+    Register_sp,
+    Register_bp,
+    Register_si,
+    Register_di,
+    Register_es,
+    Register_cs,
+    Register_ss,
+    Register_ds,
+    Register_ip,
+    Register_flags,
+    
+    Register_count,
 };
 
-struct instruction_bits
-{
-    instruction_bits_usage Usage;
-    u8 BitCount;
-    u8 Shift;
-    u8 Value;
-};
-
-struct instruction_format
-{
-    operation_type Op;
-    instruction_bits Bits[16];
-};
-
-struct disasm_context
-{
-    register_index DefaultSegment;
-    u32 AdditionalFlags;
-};
-
-static disasm_context DefaultDisAsmContext(void);
-static instruction DecodeInstruction(disasm_context *Context, memory *Memory, segmented_access *At);
-static void UpdateContext(disasm_context *Context, instruction Instruction);
+static instruction DecodeInstruction(instruction_table Table, segmented_access At);
