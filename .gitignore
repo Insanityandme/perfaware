@@ -3,3 +3,5 @@ ignore.txt
 nasm.exe
 sim86_memory_0.data
 sim86_filip.exe
+caseys_solutions
+part2/data
