@@ -1,0 +1,8 @@
+# nasm
+nasm -f win64 -o file1.obj file1.asm
+
+# linking
+lib file1.obj
+
+# dumpbin
+dumpbin /exports file1.lib
